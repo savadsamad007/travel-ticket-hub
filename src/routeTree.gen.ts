@@ -15,6 +15,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 import { Route as AppSuppliersRouteImport } from './routes/_app/suppliers'
 import { Route as AppSubAgentsRouteImport } from './routes/_app/sub-agents'
+import { Route as AppStatementsRouteImport } from './routes/_app/statements'
+import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppRefundsRouteImport } from './routes/_app/refunds'
 import { Route as AppPaymentsRouteImport } from './routes/_app/payments'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
@@ -49,6 +51,16 @@ const AppSubAgentsRoute = AppSubAgentsRouteImport.update({
   path: '/sub-agents',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStatementsRoute = AppStatementsRouteImport.update({
+  id: '/statements',
+  path: '/statements',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRefundsRoute = AppRefundsRouteImport.update({
   id: '/refunds',
   path: '/refunds',
@@ -77,6 +89,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/payments': typeof AppPaymentsRoute
   '/refunds': typeof AppRefundsRoute
+  '/reports': typeof AppReportsRoute
+  '/statements': typeof AppStatementsRoute
   '/sub-agents': typeof AppSubAgentsRoute
   '/suppliers': typeof AppSuppliersRoute
   '/tickets': typeof AppTicketsRoute
@@ -88,6 +102,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/payments': typeof AppPaymentsRoute
   '/refunds': typeof AppRefundsRoute
+  '/reports': typeof AppReportsRoute
+  '/statements': typeof AppStatementsRoute
   '/sub-agents': typeof AppSubAgentsRoute
   '/suppliers': typeof AppSuppliersRoute
   '/tickets': typeof AppTicketsRoute
@@ -101,6 +117,8 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/payments': typeof AppPaymentsRoute
   '/_app/refunds': typeof AppRefundsRoute
+  '/_app/reports': typeof AppReportsRoute
+  '/_app/statements': typeof AppStatementsRoute
   '/_app/sub-agents': typeof AppSubAgentsRoute
   '/_app/suppliers': typeof AppSuppliersRoute
   '/_app/tickets': typeof AppTicketsRoute
@@ -114,6 +132,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/payments'
     | '/refunds'
+    | '/reports'
+    | '/statements'
     | '/sub-agents'
     | '/suppliers'
     | '/tickets'
@@ -125,6 +145,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/payments'
     | '/refunds'
+    | '/reports'
+    | '/statements'
     | '/sub-agents'
     | '/suppliers'
     | '/tickets'
@@ -137,6 +159,8 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/payments'
     | '/_app/refunds'
+    | '/_app/reports'
+    | '/_app/statements'
     | '/_app/sub-agents'
     | '/_app/suppliers'
     | '/_app/tickets'
@@ -192,6 +216,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSubAgentsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/statements': {
+      id: '/_app/statements'
+      path: '/statements'
+      fullPath: '/statements'
+      preLoaderRoute: typeof AppStatementsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/refunds': {
       id: '/_app/refunds'
       path: '/refunds'
@@ -228,6 +266,8 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppPaymentsRoute: typeof AppPaymentsRoute
   AppRefundsRoute: typeof AppRefundsRoute
+  AppReportsRoute: typeof AppReportsRoute
+  AppStatementsRoute: typeof AppStatementsRoute
   AppSubAgentsRoute: typeof AppSubAgentsRoute
   AppSuppliersRoute: typeof AppSuppliersRoute
   AppTicketsRoute: typeof AppTicketsRoute
@@ -238,6 +278,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppPaymentsRoute: AppPaymentsRoute,
   AppRefundsRoute: AppRefundsRoute,
+  AppReportsRoute: AppReportsRoute,
+  AppStatementsRoute: AppStatementsRoute,
   AppSubAgentsRoute: AppSubAgentsRoute,
   AppSuppliersRoute: AppSuppliersRoute,
   AppTicketsRoute: AppTicketsRoute,
