@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 import { Route as AppSuppliersRouteImport } from './routes/_app/suppliers'
 import { Route as AppSubAgentsRouteImport } from './routes/_app/sub-agents'
+import { Route as AppRefundsRouteImport } from './routes/_app/refunds'
+import { Route as AppPaymentsRouteImport } from './routes/_app/payments'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCustomersRouteImport } from './routes/_app/customers'
 
@@ -31,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppTicketsRoute = AppTicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSuppliersRoute = AppSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
@@ -39,6 +47,16 @@ const AppSuppliersRoute = AppSuppliersRouteImport.update({
 const AppSubAgentsRoute = AppSubAgentsRouteImport.update({
   id: '/sub-agents',
   path: '/sub-agents',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRefundsRoute = AppRefundsRouteImport.update({
+  id: '/refunds',
+  path: '/refunds',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPaymentsRoute = AppPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -57,16 +75,22 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
+  '/payments': typeof AppPaymentsRoute
+  '/refunds': typeof AppRefundsRoute
   '/sub-agents': typeof AppSubAgentsRoute
   '/suppliers': typeof AppSuppliersRoute
+  '/tickets': typeof AppTicketsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
+  '/payments': typeof AppPaymentsRoute
+  '/refunds': typeof AppRefundsRoute
   '/sub-agents': typeof AppSubAgentsRoute
   '/suppliers': typeof AppSuppliersRoute
+  '/tickets': typeof AppTicketsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -75,8 +99,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/customers': typeof AppCustomersRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/payments': typeof AppPaymentsRoute
+  '/_app/refunds': typeof AppRefundsRoute
   '/_app/sub-agents': typeof AppSubAgentsRoute
   '/_app/suppliers': typeof AppSuppliersRoute
+  '/_app/tickets': typeof AppTicketsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -85,16 +112,22 @@ export interface FileRouteTypes {
     | '/login'
     | '/customers'
     | '/dashboard'
+    | '/payments'
+    | '/refunds'
     | '/sub-agents'
     | '/suppliers'
+    | '/tickets'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/customers'
     | '/dashboard'
+    | '/payments'
+    | '/refunds'
     | '/sub-agents'
     | '/suppliers'
+    | '/tickets'
   id:
     | '__root__'
     | '/'
@@ -102,8 +135,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/customers'
     | '/_app/dashboard'
+    | '/_app/payments'
+    | '/_app/refunds'
     | '/_app/sub-agents'
     | '/_app/suppliers'
+    | '/_app/tickets'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -135,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/tickets': {
+      id: '/_app/tickets'
+      path: '/tickets'
+      fullPath: '/tickets'
+      preLoaderRoute: typeof AppTicketsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/suppliers': {
       id: '/_app/suppliers'
       path: '/suppliers'
@@ -147,6 +190,20 @@ declare module '@tanstack/react-router' {
       path: '/sub-agents'
       fullPath: '/sub-agents'
       preLoaderRoute: typeof AppSubAgentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/refunds': {
+      id: '/_app/refunds'
+      path: '/refunds'
+      fullPath: '/refunds'
+      preLoaderRoute: typeof AppRefundsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payments': {
+      id: '/_app/payments'
+      path: '/payments'
+      fullPath: '/payments'
+      preLoaderRoute: typeof AppPaymentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -169,15 +226,21 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppCustomersRoute: typeof AppCustomersRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppPaymentsRoute: typeof AppPaymentsRoute
+  AppRefundsRoute: typeof AppRefundsRoute
   AppSubAgentsRoute: typeof AppSubAgentsRoute
   AppSuppliersRoute: typeof AppSuppliersRoute
+  AppTicketsRoute: typeof AppTicketsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCustomersRoute: AppCustomersRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppPaymentsRoute: AppPaymentsRoute,
+  AppRefundsRoute: AppRefundsRoute,
   AppSubAgentsRoute: AppSubAgentsRoute,
   AppSuppliersRoute: AppSuppliersRoute,
+  AppTicketsRoute: AppTicketsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
