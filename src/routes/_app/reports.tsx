@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
+import { useIsAdmin } from "@/lib/auth";
 import { PageHeader } from "@/components/skybird/ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_app/reports")({
 });
 
 function ReportsPage() {
+  const isAdmin = useIsAdmin();
   const [tickets, setTickets] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -27,7 +29,8 @@ function ReportsPage() {
   const [toDate, setToDate] = useState("");
   const [supplierId, setSupplierId] = useState("all");
   const [agentId, setAgentId] = useState("all");
-  const [showProfit, setShowProfit] = useState(true);
+  const [showProfitState, setShowProfit] = useState(true);
+  const showProfit = isAdmin && showProfitState;
 
   useEffect(() => {
     (async () => {
@@ -130,16 +133,18 @@ function ReportsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-3 pb-1">
-            <Switch id="profit" checked={showProfit} onCheckedChange={setShowProfit} />
-            <Label htmlFor="profit" className="cursor-pointer">Show profit</Label>
-          </div>
+          {isAdmin && (
+            <div className="flex items-center gap-3 pb-1">
+              <Switch id="profit" checked={showProfit} onCheckedChange={setShowProfit} />
+              <Label htmlFor="profit" className="cursor-pointer">Show profit</Label>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <Card className="shadow-soft"><CardContent className="p-4"><div className="text-xs text-muted-foreground">Tickets</div><div className="text-2xl font-bold">{totals.count}</div></CardContent></Card>
-        <Card className="shadow-soft"><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total sale</div><div className="text-2xl font-bold text-info">{fmt(totals.sale)}</div></CardContent></Card>
+        {isAdmin && <Card className="shadow-soft"><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total sale</div><div className="text-2xl font-bold text-info">{fmt(totals.sale)}</div></CardContent></Card>}
         {showProfit && <Card className="shadow-soft"><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total cost</div><div className="text-2xl font-bold text-warning">{fmt(totals.cost)}</div></CardContent></Card>}
         {showProfit && <Card className="shadow-soft"><CardContent className="p-4"><div className="text-xs text-muted-foreground">Net profit</div><div className={`text-2xl font-bold ${totals.profit >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totals.profit)}</div></CardContent></Card>}
       </div>
