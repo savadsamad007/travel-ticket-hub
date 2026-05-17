@@ -16,11 +16,14 @@ import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 import { Route as AppSuppliersRouteImport } from './routes/_app/suppliers'
 import { Route as AppSubAgentsRouteImport } from './routes/_app/sub-agents'
 import { Route as AppStatementsRouteImport } from './routes/_app/statements'
+import { Route as AppStaffRouteImport } from './routes/_app/staff'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppRefundsRouteImport } from './routes/_app/refunds'
 import { Route as AppPaymentsRouteImport } from './routes/_app/payments'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCustomersRouteImport } from './routes/_app/customers'
+import { Route as AppCashBookRouteImport } from './routes/_app/cash-book'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -56,6 +59,16 @@ const AppStatementsRoute = AppStatementsRouteImport.update({
   path: '/statements',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStaffRoute = AppStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -81,15 +94,23 @@ const AppCustomersRoute = AppCustomersRouteImport.update({
   path: '/customers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCashBookRoute = AppCashBookRouteImport.update({
+  id: '/cash-book',
+  path: '/cash-book',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/cash-book': typeof AppCashBookRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
   '/payments': typeof AppPaymentsRoute
   '/refunds': typeof AppRefundsRoute
   '/reports': typeof AppReportsRoute
+  '/settings': typeof AppSettingsRoute
+  '/staff': typeof AppStaffRoute
   '/statements': typeof AppStatementsRoute
   '/sub-agents': typeof AppSubAgentsRoute
   '/suppliers': typeof AppSuppliersRoute
@@ -98,11 +119,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/cash-book': typeof AppCashBookRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
   '/payments': typeof AppPaymentsRoute
   '/refunds': typeof AppRefundsRoute
   '/reports': typeof AppReportsRoute
+  '/settings': typeof AppSettingsRoute
+  '/staff': typeof AppStaffRoute
   '/statements': typeof AppStatementsRoute
   '/sub-agents': typeof AppSubAgentsRoute
   '/suppliers': typeof AppSuppliersRoute
@@ -113,11 +137,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/cash-book': typeof AppCashBookRoute
   '/_app/customers': typeof AppCustomersRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/payments': typeof AppPaymentsRoute
   '/_app/refunds': typeof AppRefundsRoute
   '/_app/reports': typeof AppReportsRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/staff': typeof AppStaffRoute
   '/_app/statements': typeof AppStatementsRoute
   '/_app/sub-agents': typeof AppSubAgentsRoute
   '/_app/suppliers': typeof AppSuppliersRoute
@@ -128,11 +155,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/cash-book'
     | '/customers'
     | '/dashboard'
     | '/payments'
     | '/refunds'
     | '/reports'
+    | '/settings'
+    | '/staff'
     | '/statements'
     | '/sub-agents'
     | '/suppliers'
@@ -141,11 +171,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/cash-book'
     | '/customers'
     | '/dashboard'
     | '/payments'
     | '/refunds'
     | '/reports'
+    | '/settings'
+    | '/staff'
     | '/statements'
     | '/sub-agents'
     | '/suppliers'
@@ -155,11 +188,14 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/cash-book'
     | '/_app/customers'
     | '/_app/dashboard'
     | '/_app/payments'
     | '/_app/refunds'
     | '/_app/reports'
+    | '/_app/settings'
+    | '/_app/staff'
     | '/_app/statements'
     | '/_app/sub-agents'
     | '/_app/suppliers'
@@ -223,6 +259,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStatementsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/staff': {
+      id: '/_app/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof AppStaffRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reports': {
       id: '/_app/reports'
       path: '/reports'
@@ -258,15 +308,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCustomersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cash-book': {
+      id: '/_app/cash-book'
+      path: '/cash-book'
+      fullPath: '/cash-book'
+      preLoaderRoute: typeof AppCashBookRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppCashBookRoute: typeof AppCashBookRoute
   AppCustomersRoute: typeof AppCustomersRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppPaymentsRoute: typeof AppPaymentsRoute
   AppRefundsRoute: typeof AppRefundsRoute
   AppReportsRoute: typeof AppReportsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppStaffRoute: typeof AppStaffRoute
   AppStatementsRoute: typeof AppStatementsRoute
   AppSubAgentsRoute: typeof AppSubAgentsRoute
   AppSuppliersRoute: typeof AppSuppliersRoute
@@ -274,11 +334,14 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCashBookRoute: AppCashBookRoute,
   AppCustomersRoute: AppCustomersRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppPaymentsRoute: AppPaymentsRoute,
   AppRefundsRoute: AppRefundsRoute,
   AppReportsRoute: AppReportsRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppStaffRoute: AppStaffRoute,
   AppStatementsRoute: AppStatementsRoute,
   AppSubAgentsRoute: AppSubAgentsRoute,
   AppSuppliersRoute: AppSuppliersRoute,
@@ -295,13 +358,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
 import { getOwnerId, computePartyBalance, type PartyType, PARTY_TABLES } from "@/lib/data";
+import { useIsAdmin } from "@/lib/auth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export function PartyPage({
   withOpeningBalance: boolean;
 }) {
   const tbl = PARTY_TABLES[type];
+  const isAdmin = useIsAdmin();
   const [rows, setRows] = useState<any[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
@@ -138,7 +140,7 @@ export function PartyPage({
                   <TableCell className={`text-right font-semibold ${tone}`}>{fmt(bal)}</TableCell>
                   <TableCell className="text-right">
                     <Button size="icon" variant="ghost" onClick={() => startEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    {isAdmin && <Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </TableCell>
                 </TableRow>
               );

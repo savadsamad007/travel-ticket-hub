@@ -1,7 +1,8 @@
 import { createFileRoute, Outlet, Navigate, Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Ticket, Building2, Users, UserCheck,
-  Wallet, RotateCcw, FileBarChart, BookText, LogOut, Plane, Menu
+  Wallet, RotateCcw, FileBarChart, BookText, LogOut, Plane, Menu,
+  Settings, ShieldCheck, Banknote,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -12,20 +13,8 @@ export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
-const nav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/tickets", label: "Tickets", icon: Ticket },
-  { to: "/suppliers", label: "Suppliers", icon: Building2 },
-  { to: "/sub-agents", label: "Sub-agents", icon: UserCheck },
-  { to: "/customers", label: "Customers", icon: Users },
-  { to: "/payments", label: "Payments", icon: Wallet },
-  { to: "/refunds", label: "Refunds", icon: RotateCcw },
-  { to: "/statements", label: "Statements", icon: BookText },
-  { to: "/reports", label: "Reports", icon: FileBarChart },
-] as const;
-
 function AppLayout() {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, role, agencyName } = useAuth();
   const loc = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -38,9 +27,25 @@ function AppLayout() {
   }
   if (!user) return <Navigate to="/login" />;
 
+  const isAdmin = role === "admin";
+
+  const nav = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, admin: false },
+    { to: "/tickets", label: "Tickets", icon: Ticket, admin: false },
+    { to: "/suppliers", label: "Suppliers", icon: Building2, admin: false },
+    { to: "/sub-agents", label: "Sub-agents", icon: UserCheck, admin: false },
+    { to: "/customers", label: "Customers", icon: Users, admin: false },
+    { to: "/payments", label: "Payments", icon: Wallet, admin: false },
+    { to: "/cash-book", label: "Cash in Hand", icon: Banknote, admin: false },
+    { to: "/refunds", label: "Refunds", icon: RotateCcw, admin: false },
+    { to: "/statements", label: "Statements", icon: BookText, admin: false },
+    { to: "/reports", label: "Reports", icon: FileBarChart, admin: false },
+    { to: "/staff", label: "Staff", icon: ShieldCheck, admin: true },
+    { to: "/settings", label: "Settings", icon: Settings, admin: true },
+  ] as const;
+
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className={cn(
         "fixed lg:static z-40 inset-y-0 left-0 w-64 bg-sidebar text-sidebar-foreground flex flex-col transform transition-transform",
         open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -49,13 +54,13 @@ function AppLayout() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-glow">
             <Plane className="h-5 w-5" />
           </div>
-          <div>
-            <div className="text-lg font-bold">Skybird</div>
-            <div className="text-xs text-sidebar-foreground/60">Travel Billing</div>
+          <div className="min-w-0">
+            <div className="text-lg font-bold truncate">{agencyName}</div>
+            <div className="text-xs text-sidebar-foreground/60">Skybird · {role ?? "—"}</div>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {nav.map((item) => {
+          {nav.filter((n) => !n.admin || isAdmin).map((item) => {
             const Icon = item.icon;
             const active = loc.pathname === item.to || loc.pathname.startsWith(item.to + "/");
             return (
@@ -82,10 +87,8 @@ function AppLayout() {
         </div>
       </aside>
 
-      {/* Mobile backdrop */}
       {open && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setOpen(false)} />}
 
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b bg-background/80 backdrop-blur px-4 sm:px-6 py-3">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}>
