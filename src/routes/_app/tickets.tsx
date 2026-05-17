@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Receipt } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, X } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
 import { getOwnerId } from "@/lib/data";
+import { useIsAdmin } from "@/lib/auth";
+import { formatRoute } from "@/lib/format";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/skybird/ui";
+import { AirlineAutocomplete } from "@/components/skybird/airline-autocomplete";
+import { QuickAddCustomer } from "@/components/skybird/quick-add-customer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,23 +18,40 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_app/tickets")({
   component: TicketsPage,
 });
 
+type SvcRow = { service_type: string; description: string; cost_price: string; sale_price: string };
+
 type Form = {
+  is_service_only: boolean;
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string;
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
+  services: SvcRow[];
 };
 const emptyForm: Form = {
+  is_service_only: false,
   ticket_no: "", pnr: "", passenger_name: "", route: "", travel_date: "", airline: "",
   supplier_id: "", buyer_type: "customer", buyer_id: "",
-  cost_price: "0", sale_price: "0", status: "booked", notes: "",
+  cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
 };
 
+const SERVICE_TYPES = [
+  { v: "addon_luggage", l: "Add-on luggage" },
+  { v: "seat_selection", l: "Seat selection" },
+  { v: "meal", l: "Meal" },
+  { v: "date_change", l: "Date change" },
+  { v: "insurance", l: "Insurance" },
+  { v: "visa", l: "Visa assistance" },
+  { v: "other", l: "Other" },
+];
+
 function TicketsPage() {
+  const isAdmin = useIsAdmin();
   const [tickets, setTickets] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -40,7 +61,7 @@ function TicketsPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
 
-  // service modal
+  // standalone service modal (on existing tickets)
   const [svcOpen, setSvcOpen] = useState(false);
   const [svcTicket, setSvcTicket] = useState<any | null>(null);
   const [svcForm, setSvcForm] = useState({ service_type: "addon_luggage", description: "", cost_price: "0", sale_price: "0" });
@@ -72,28 +93,60 @@ function TicketsPage() {
     return (services[id] ?? []).reduce((s, x) => s + Number(x[k]), 0);
   }
 
+  function addSvcRow() {
+    setForm((f) => ({ ...f, services: [...f.services, { service_type: "addon_luggage", description: "", cost_price: "0", sale_price: "0" }] }));
+  }
+  function updateSvcRow(idx: number, patch: Partial<SvcRow>) {
+    setForm((f) => ({ ...f, services: f.services.map((s, i) => i === idx ? { ...s, ...patch } : s) }));
+  }
+  function removeSvcRow(idx: number) {
+    setForm((f) => ({ ...f, services: f.services.filter((_, i) => i !== idx) }));
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.supplier_id) return toast.error("Pick a supplier");
+    if (!form.is_service_only && !form.supplier_id) return toast.error("Pick a supplier (or toggle 'Service-only')");
     if (!form.buyer_id) return toast.error("Pick a buyer");
     try {
       const owner_id = await getOwnerId();
-      const payload = {
+      const payload: any = {
         ticket_no: form.ticket_no || null, pnr: form.pnr || null,
         passenger_name: form.passenger_name.trim(), route: form.route || null,
         travel_date: form.travel_date || null, airline: form.airline || null,
-        supplier_id: form.supplier_id, buyer_type: form.buyer_type, buyer_id: form.buyer_id,
-        cost_price: Number(form.cost_price || 0), sale_price: Number(form.sale_price || 0),
+        supplier_id: form.is_service_only ? null : form.supplier_id,
+        buyer_type: form.buyer_type, buyer_id: form.buyer_id,
+        cost_price: form.is_service_only ? 0 : Number(form.cost_price || 0),
+        sale_price: form.is_service_only ? 0 : Number(form.sale_price || 0),
         status: form.status, notes: form.notes || null,
+        is_service_only: form.is_service_only,
       };
+      let ticketId: string;
       if (editing) {
         const { error } = await supabase.from("tickets").update(payload).eq("id", editing.id);
         if (error) throw error;
+        ticketId = editing.id;
         toast.success("Ticket updated");
       } else {
-        const { error } = await supabase.from("tickets").insert({ ...payload, owner_id });
+        const { data, error } = await supabase.from("tickets").insert({ ...payload, owner_id }).select("id").single();
         if (error) throw error;
+        ticketId = data.id;
         toast.success("Ticket created");
+      }
+      // insert new services from form (only on create — edit keeps existing services unchanged)
+      if (!editing && form.services.length) {
+        const rows = form.services
+          .filter((s) => Number(s.sale_price) > 0 || Number(s.cost_price) > 0)
+          .map((s) => ({
+            owner_id, ticket_id: ticketId,
+            service_type: s.service_type,
+            description: s.description || null,
+            cost_price: Number(s.cost_price || 0),
+            sale_price: Number(s.sale_price || 0),
+          }));
+        if (rows.length) {
+          const { error } = await supabase.from("ticket_services").insert(rows);
+          if (error) throw error;
+        }
       }
       setOpen(false); setEditing(null); setForm(emptyForm); load();
     } catch (e: any) { toast.error(e.message); }
@@ -102,11 +155,12 @@ function TicketsPage() {
   function startEdit(t: any) {
     setEditing(t);
     setForm({
+      is_service_only: !!t.is_service_only,
       ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "", passenger_name: t.passenger_name,
       route: t.route ?? "", travel_date: t.travel_date ?? "", airline: t.airline ?? "",
       supplier_id: t.supplier_id ?? "", buyer_type: t.buyer_type, buyer_id: t.buyer_id,
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
-      status: t.status, notes: t.notes ?? "",
+      status: t.status, notes: t.notes ?? "", services: [],
     });
     setOpen(true);
   }
@@ -146,7 +200,7 @@ function TicketsPage() {
 
   return (
     <div>
-      <PageHeader title="Tickets" description="Create & manage ticket sales.">
+      <PageHeader title="Tickets" description="Create & manage ticket sales and add-on services.">
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditing(null); setForm(emptyForm); } }}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-brand text-white shadow-glow"><Plus className="h-4 w-4 mr-1" /> New ticket</Button>
@@ -154,21 +208,41 @@ function TicketsPage() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{editing ? "Edit" : "New"} ticket</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium">Service-only entry</div>
+                  <div className="text-xs text-muted-foreground">Customer bought ticket from another agency — only add services.</div>
+                </div>
+                <Switch checked={form.is_service_only}
+                  onCheckedChange={(v) => setForm({ ...form, is_service_only: v, supplier_id: v ? "" : form.supplier_id, cost_price: v ? "0" : form.cost_price, sale_price: v ? "0" : form.sale_price })} />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2"><Label>Ticket no</Label><Input value={form.ticket_no} maxLength={50} onChange={(e) => setForm({ ...form, ticket_no: e.target.value })} /></div>
                 <div className="space-y-2"><Label>PNR</Label><Input value={form.pnr} maxLength={20} onChange={(e) => setForm({ ...form, pnr: e.target.value })} /></div>
               </div>
               <div className="space-y-2"><Label>Passenger name *</Label><Input required maxLength={120} value={form.passenger_name} onChange={(e) => setForm({ ...form, passenger_name: e.target.value })} /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2"><Label>Route</Label><Input placeholder="JED → DXB" value={form.route} maxLength={80} onChange={(e) => setForm({ ...form, route: e.target.value })} /></div>
+                <div className="space-y-2">
+                  <Label>Route <span className="text-xs text-muted-foreground">(auto-/ every 3 letters)</span></Label>
+                  <Input
+                    placeholder="RUH/JED/COK"
+                    value={form.route}
+                    maxLength={30}
+                    onChange={(e) => setForm({ ...form, route: formatRoute(e.target.value) })}
+                  />
+                </div>
                 <div className="space-y-2"><Label>Travel date</Label><Input type="date" value={form.travel_date} onChange={(e) => setForm({ ...form, travel_date: e.target.value })} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2"><Label>Airline</Label><Input value={form.airline} maxLength={50} onChange={(e) => setForm({ ...form, airline: e.target.value })} /></div>
                 <div className="space-y-2">
-                  <Label>Supplier *</Label>
-                  <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
+                  <Label>Airline <span className="text-xs text-muted-foreground">(type code e.g. SV)</span></Label>
+                  <AirlineAutocomplete value={form.airline} onChange={(v) => setForm({ ...form, airline: v })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Supplier {form.is_service_only ? "" : "*"}</Label>
+                  <Select disabled={form.is_service_only} value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
+                    <SelectTrigger><SelectValue placeholder={form.is_service_only ? "— not needed —" : "Choose…"} /></SelectTrigger>
                     <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
@@ -186,20 +260,56 @@ function TicketsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Buyer *</Label>
-                  <Select value={form.buyer_id} onValueChange={(v) => setForm({ ...form, buyer_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
-                    <SelectContent>{buyerOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Select value={form.buyer_id} onValueChange={(v) => setForm({ ...form, buyer_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
+                        <SelectContent>{buyerOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    {form.buyer_type === "customer" && (
+                      <QuickAddCustomer onCreated={(c) => { setCustomers((cs) => [c, ...cs]); setForm((f) => ({ ...f, buyer_id: c.id })); }} />
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-2"><Label>Cost (from supplier)</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Sale price</Label><Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} /></div>
-                <div className="space-y-2">
-                  <Label>Profit</Label>
-                  <div className={`h-9 px-3 flex items-center rounded-md border bg-muted/40 font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>{fmt(profit)}</div>
+              {!form.is_service_only && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2"><Label>Cost (from supplier)</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Sale price</Label><Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} /></div>
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label>Profit</Label>
+                      <div className={`h-9 px-3 flex items-center rounded-md border bg-muted/40 font-semibold ${profit >= 0 ? "text-success" : "text-destructive"}`}>{fmt(profit)}</div>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {/* Add-on services editor */}
+              <div className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Add-on services</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={addSvcRow}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
+                </div>
+                {form.services.length === 0 && <div className="text-xs text-muted-foreground">No add-ons. Click "Add" for luggage, seat, meal, etc.</div>}
+                {form.services.map((s, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-3">
+                      <Select value={s.service_type} onValueChange={(v) => updateSvcRow(idx, { service_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{SERVICE_TYPES.map((x) => <SelectItem key={x.v} value={x.v}>{x.l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <Input className="col-span-4" placeholder="Description" maxLength={120} value={s.description} onChange={(e) => updateSvcRow(idx, { description: e.target.value })} />
+                    <Input className="col-span-2" type="number" step="0.01" placeholder="Cost" value={s.cost_price} onChange={(e) => updateSvcRow(idx, { cost_price: e.target.value })} />
+                    <Input className="col-span-2" type="number" step="0.01" placeholder="Sale" value={s.sale_price} onChange={(e) => updateSvcRow(idx, { sale_price: e.target.value })} />
+                    <Button type="button" size="icon" variant="ghost" className="col-span-1" onClick={() => removeSvcRow(idx)}><X className="h-4 w-4" /></Button>
+                  </div>
+                ))}
+                {editing && <div className="text-xs text-muted-foreground">Tip: existing services aren't shown here — use the receipt icon on the ticket row to add more.</div>}
               </div>
+
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={(v: any) => setForm({ ...form, status: v })}>
@@ -227,15 +337,15 @@ function TicketsPage() {
               <TableHead>Passenger / Route</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Buyer</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
+              {isAdmin && <TableHead className="text-right">Cost</TableHead>}
               <TableHead className="text-right">Sale</TableHead>
-              <TableHead className="text-right">Profit</TableHead>
+              {isAdmin && <TableHead className="text-right">Profit</TableHead>}
               <TableHead>Status</TableHead>
               <TableHead className="text-right w-40">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tickets.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No tickets yet.</TableCell></TableRow>}
+            {tickets.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8 text-muted-foreground">No tickets yet.</TableCell></TableRow>}
             {tickets.map((t) => {
               const totalCost = Number(t.cost_price) + svcTotal(t.id, "cost_price");
               const totalSale = Number(t.sale_price) + svcTotal(t.id, "sale_price");
@@ -243,24 +353,27 @@ function TicketsPage() {
               return (
                 <TableRow key={t.id} className="hover:bg-muted/40">
                   <TableCell>
-                    <div className="font-medium">{t.passenger_name}</div>
-                    <div className="text-xs text-muted-foreground">{t.route ?? "—"} {t.travel_date ? `· ${t.travel_date}` : ""}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {t.passenger_name}
+                      {t.is_service_only && <Badge variant="outline" className="text-[10px]">Service-only</Badge>}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{t.route ?? "—"} {t.travel_date ? `· ${t.travel_date}` : ""} {t.airline ? `· ${t.airline}` : ""}</div>
                     {(services[t.id] ?? []).length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {services[t.id].map((s) => <Badge key={s.id} variant="outline" className="text-xs">+{s.service_type}</Badge>)}
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{nameOf(suppliers, t.supplier_id)}</TableCell>
+                  <TableCell>{t.supplier_id ? nameOf(suppliers, t.supplier_id) : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
                   <TableCell><div className="text-sm">{buyerName(t)}</div><div className="text-xs text-muted-foreground">{t.buyer_type === "customer" ? "Customer" : "Sub-agent"}</div></TableCell>
-                  <TableCell className="text-right">{fmt(totalCost)}</TableCell>
+                  {isAdmin && <TableCell className="text-right">{fmt(totalCost)}</TableCell>}
                   <TableCell className="text-right font-medium">{fmt(totalSale)}</TableCell>
-                  <TableCell className={`text-right font-semibold ${p >= 0 ? "text-success" : "text-destructive"}`}>{fmt(p)}</TableCell>
+                  {isAdmin && <TableCell className={`text-right font-semibold ${p >= 0 ? "text-success" : "text-destructive"}`}>{fmt(p)}</TableCell>}
                   <TableCell><span className={`text-xs px-2 py-1 rounded-full ${statusTone[t.status]}`}>{t.status}</span></TableCell>
                   <TableCell className="text-right">
                     <Button size="icon" variant="ghost" title="Add service" onClick={() => { setSvcTicket(t); setSvcOpen(true); }}><Receipt className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => startEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => remove(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    {isAdmin && <Button size="icon" variant="ghost" onClick={() => remove(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </TableCell>
                 </TableRow>
               );
@@ -281,13 +394,7 @@ function TicketsPage() {
                 <Label>Service type</Label>
                 <Select value={svcForm.service_type} onValueChange={(v) => setSvcForm({ ...svcForm, service_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="addon_luggage">Add-on luggage</SelectItem>
-                    <SelectItem value="date_change">Date change</SelectItem>
-                    <SelectItem value="seat_selection">Seat selection</SelectItem>
-                    <SelectItem value="meal">Meal</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
+                  <SelectContent>{SERVICE_TYPES.map((x) => <SelectItem key={x.v} value={x.v}>{x.l}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2"><Label>Description</Label><Input maxLength={200} value={svcForm.description} onChange={(e) => setSvcForm({ ...svcForm, description: e.target.value })} /></div>
