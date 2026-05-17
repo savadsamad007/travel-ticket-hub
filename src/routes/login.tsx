@@ -15,10 +15,8 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const nav = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!authLoading && user) return <Navigate to="/dashboard" />;
@@ -27,24 +25,10 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success("Welcome back!");
-        nav({ to: "/dashboard" });
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: name },
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if (error) throw error;
-        toast.success("Account created — you're in!");
-        nav({ to: "/dashboard" });
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success("Welcome back!");
+      nav({ to: "/dashboard" });
     } catch (e: any) {
       toast.error(e.message || "Authentication failed");
     } finally {
@@ -54,7 +38,6 @@ function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left visual */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-brand">
         <div className="absolute inset-0 opacity-30"
           style={{ backgroundImage: "radial-gradient(circle at 20% 20%, white 1px, transparent 1px), radial-gradient(circle at 80% 60%, white 1px, transparent 1px)", backgroundSize: "60px 60px, 90px 90px" }} />
@@ -75,7 +58,6 @@ function LoginPage() {
         </div>
       </div>
 
-      {/* Right form */}
       <div className="flex w-full lg:w-1/2 items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-8 flex items-center gap-2">
@@ -84,17 +66,11 @@ function LoginPage() {
             </div>
             <span className="text-xl font-bold">Skybird</span>
           </div>
-          <h2 className="text-3xl font-bold">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+          <h2 className="text-3xl font-bold">Welcome back</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Sign in to continue to Skybird." : "Start managing your travel billing in minutes."}
+            Sign in to continue to Skybird. New staff accounts are created by your admin from the Staff page.
           </p>
           <form onSubmit={submit} className="mt-8 space-y-4">
-            {mode === "signup" && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Full name</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={255} />
@@ -104,16 +80,9 @@ function LoginPage() {
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} maxLength={72} />
             </div>
             <Button type="submit" disabled={loading} className="w-full bg-gradient-brand hover:opacity-90 text-white shadow-glow">
-              {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+              {loading ? "Please wait…" : "Sign in"}
             </Button>
           </form>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "login" ? "New here?" : "Already have an account?"}{" "}
-            <button onClick={() => setMode(mode === "login" ? "signup" : "login")}
-              className="font-medium text-primary hover:underline">
-              {mode === "login" ? "Create an account" : "Sign in"}
-            </button>
-          </p>
         </div>
       </div>
     </div>
