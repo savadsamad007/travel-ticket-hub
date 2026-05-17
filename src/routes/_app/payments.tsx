@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
 import { getOwnerId, type PartyType } from "@/lib/data";
+import { useIsAdmin } from "@/lib/auth";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/skybird/ui";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_app/payments")({
 });
 
 function PaymentsPage() {
+  const isAdmin = useIsAdmin();
   const [rows, setRows] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -163,7 +165,7 @@ function PaymentsPage() {
                 <TableCell className="capitalize">{r.method}</TableCell>
                 <TableCell className={`text-right font-semibold ${r.direction === "in" ? "text-success" : "text-warning"}`}>{fmt(r.amount)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.reference ?? "—"}</TableCell>
-                <TableCell className="text-right"><Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                <TableCell className="text-right">{isAdmin && <Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}</TableCell>
               </TableRow>
             ))}
           </TableBody>
