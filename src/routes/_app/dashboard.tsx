@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Ticket, Wallet, Building2, Users, TrendingUp, RotateCcw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { fmt } from "@/lib/supabase";
+import { useIsAdmin } from "@/lib/auth";
 import { StatCard, PageHeader } from "@/components/skybird/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 function Dashboard() {
+  const isAdmin = useIsAdmin();
   const [s, setS] = useState({
     tickets: 0, suppliers: 0, customers: 0, agents: 0,
     saleTotal: 0, costTotal: 0, profit: 0,
@@ -52,8 +54,8 @@ function Dashboard() {
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total tickets" value={String(s.tickets)} icon={Ticket} gradient="bg-gradient-brand" />
-        <StatCard title="Total sales" value={fmt(s.saleTotal)} icon={TrendingUp} gradient="bg-gradient-sky" />
-        <StatCard title="Net profit" value={fmt(s.profit)} icon={Wallet} gradient="bg-gradient-sunset" subtitle={`Cost ${fmt(s.costTotal)}`} />
+        {isAdmin && <StatCard title="Total sales" value={fmt(s.saleTotal)} icon={TrendingUp} gradient="bg-gradient-sky" />}
+        {isAdmin && <StatCard title="Net profit" value={fmt(s.profit)} icon={Wallet} gradient="bg-gradient-sunset" subtitle={`Cost ${fmt(s.costTotal)}`} />}
         <StatCard title="Refunds" value={String(s.refundCount)} icon={RotateCcw} gradient="bg-gradient-brand" />
       </div>
 
