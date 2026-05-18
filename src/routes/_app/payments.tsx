@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_app/payments")({
 
 function PaymentsPage() {
   const isAdmin = useIsAdmin();
+  const { agencyProfile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -168,7 +169,26 @@ function PaymentsPage() {
                 <TableCell className="capitalize">{r.method}</TableCell>
                 <TableCell className={`text-right font-semibold ${r.direction === "in" ? "text-success" : "text-warning"}`}>{fmt(r.amount)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.reference ?? "—"}</TableCell>
-                <TableCell className="text-right">{isAdmin && <Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}</TableCell>
+                <TableCell className="text-right">
+                  <Button size="icon" variant="ghost" title="Voucher PDF" onClick={() => {
+                    const party = partyName(r.party_type, r.party_id);
+                    buildPaymentVoucher({
+                      agency: agencyProfile ?? {},
+                      direction: r.direction, voucher_no: r.id.slice(0, 8).toUpperCase(),
+                      date: r.created_at, party_name: party, party_type: r.party_type,
+                      amount: Number(r.amount), method: r.method,
+                      reference: r.reference, notes: r.notes,
+                    });
+                  }}><FileText className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" title="Share on WhatsApp" onClick={() => {
+                    const list = r.party_type === "supplier" ? suppliers : r.party_type === "sub_agent" ? agents : customers;
+                    const p = list.find((x: any) => x.id === r.party_id);
+                    const title = r.direction === "in" ? "Receipt" : "Payment";
+                    const text = `*${agencyProfile?.agency_name ?? "Skybird"}*\n${title} Voucher\nVoucher: ${r.id.slice(0,8).toUpperCase()}\nDate: ${new Date(r.created_at).toLocaleDateString()}\n${r.direction === "in" ? "Received from" : "Paid to"}: ${partyName(r.party_type, r.party_id)}\nAmount: ${fmt(r.amount)}\nMethod: ${r.method}${r.reference ? `\nRef: ${r.reference}` : ""}`;
+                    openWhatsApp(p?.phone, text);
+                  }}><MessageCircle className="h-4 w-4" /></Button>
+                  {isAdmin && <Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
