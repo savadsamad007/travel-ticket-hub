@@ -40,8 +40,11 @@ function pageHeader(title, desc, right){
   return wrap;
 }
 
-function statCard(label, value, sub, variant){
-  return h(`<div class="stat-card ${variant||""}"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div>${sub?`<div class="sub">${escapeHtml(sub)}</div>`:""}<div class="stat-bar"></div></div>`);
+function statCard(label, value, sub, variant, icon){
+  return h(`<div class="stat-card ${variant||""}">
+    <div class="stat-head"><div class="label">${escapeHtml(label)}</div><div class="icon">${icon||"●"}</div></div>
+    <div class="value">${escapeHtml(value)}</div>${sub?`<div class="sub">${escapeHtml(sub)}</div>`:""}
+    <div class="stat-bar"></div></div>`);
 }
 
 function tableEl(cols, rows, opts){
