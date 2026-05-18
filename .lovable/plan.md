@@ -1,54 +1,105 @@
 
-# Plan — Skybird v3
+# Skybird HTML rebuild — plan
 
-## 1. Per-staff permissions (checkbox UI)
+You picked the biggest option: throw away the React/TanStack app and rebuild as a plain static HTML + vanilla JS app that talks directly to your Google Apps Script Web App (Sheet `1CcpkHYy…dsDNg`). No build step, no npm, opens in any browser, deploys as a zip on any static host (or even Google Drive / GitHub Pages).
 
-**DB** (new SQL file `supabase-schema-v3.sql` to paste in SQL Editor):
-- Add `permissions jsonb default '{}'::jsonb` to `user_agency`.
-- Keys (each `true`/`false`): `tickets`, `refunds`, `payments`, `customers`, `suppliers`, `sub_agents`, `cash_book`, `reports`, `statements`. Admin ignores it (always full).
+I want to confirm scope **before** I delete anything, because this is a one-way trip.
 
-**Code**:
-- `auth.tsx` loads `permissions` into context.
-- `staff.tsx`: per-row checkboxes that update `permissions` (live save) + a "Defaults" preset (tickets+customers+payments).
-- `_app.tsx`: hide sidebar items the salesman doesn't have.
-- Each route file: salesman without permission → `<Navigate to="/dashboard" />`.
+## What you get
 
-## 2. Payment voucher PDF + WhatsApp share
+Single folder `skybird-html/` containing:
 
-In `src/lib/pdf.ts` add `buildPaymentVoucher({ direction, party, amount, mode, ref, date, agencyProfile })` — A5 layout, agency logo/name/address/VAT, party, amount in words, signature line. "Receipt Voucher" for `in`, "Payment Voucher" for `out`.
+```text
+skybird-html/
+├── index.html              ← login + shell + routing (hash-based: #/dashboard)
+├── css/app.css             ← Tailwind-like utility CSS, dark/sky theme
+├── js/
+│   ├── api.js              ← gas(action, data) → POST to your Web App URL
+│   ├── auth.js             ← login / current user / role / permissions
+│   ├── store.js            ← in-memory cache + localStorage
+│   ├── router.js           ← hash router
+│   ├── ui.js               ← table, modal, toast, form helpers
+│   ├── airlines.js         ← SV→Saudia autocomplete (same list as before)
+│   ├── format.js           ← currency, route auto-/ every 3 chars
+│   ├── pdf.js              ← jsPDF via CDN — voucher A5 + invoice A4
+│   ├── whatsapp.js         ← wa.me share
+│   └── pages/
+│       ├── dashboard.js
+│       ├── tickets.js      ← + quick-add customer, airline autocomplete
+│       ├── refunds.js
+│       ├── payments.js     ← + voucher PDF + WhatsApp
+│       ├── customers.js
+│       ├── suppliers.js
+│       ├── sub-agents.js
+│       ├── cash-book.js
+│       ├── reports.js
+│       ├── staff.js        ← per-staff permission checkboxes
+│       └── settings.js     ← agency profile, report email
+└── apps-script/
+    └── Code.gs             ← READY-TO-PASTE Apps Script source you deploy
+```
 
-In `payments.tsx` table: add **PDF** button (download) + **WhatsApp** button (opens `https://wa.me/<party.phone>?text=<prefilled>`).
+External libs via CDN only: Tailwind Play CDN, jsPDF, jsPDF-AutoTable, Lucide icons. No bundler.
 
-## 3. Ticket tax invoice PDF + WhatsApp share
+## How data flows
 
-Add `buildTicketInvoice({ ticket, services, buyer, agencyProfile })` — full A4 tax invoice: agency header, invoice no (= ticket no), date, buyer block, line items (ticket + each add-on service), subtotal, VAT 15% breakdown if VAT no. present, total, amount in words, terms.
+```text
+Browser ──fetch POST JSON──▶ Apps Script Web App URL ──▶ Google Sheet tabs
+        ◀── { ok, data } ───
+```
 
-In `tickets.tsx` row actions: **Invoice** + **WhatsApp**.
+Single endpoint, every call: `POST { action, data, token }` → `{ ok: true, data }` or `{ ok: false, error }`. All in `js/api.js`:
 
-## 4. WhatsApp helper
+```js
+async function gas(action, data = {}) {
+  const r = await fetch(WEB_APP_URL, { method: "POST", body: JSON.stringify({ action, data, token: getToken() }) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error); return j.data;
+}
+```
 
-`src/lib/whatsapp.ts` exports `openWhatsApp(phone, text)` — normalises phone (strip non-digits, add country code if missing) and opens `https://wa.me/...?text=...`. Free share-link approach (user's choice).
+## Apps Script side (I generate `Code.gs`)
 
-## 5. Daily report email (11:59 PM)
+I'll write a complete `Code.gs` with:
+- Sheet tabs created on first run: `users`, `agency_profile`, `customers`, `suppliers`, `sub_agents`, `tickets`, `ticket_services`, `refunds`, `payments`, `staff_permissions`
+- `doPost(e)` router that dispatches on `action` (e.g. `auth.login`, `tickets.list`, `tickets.create`, `payments.create`, `staff.setPermissions`, …)
+- Simple token auth: on login, generate a token, store in `users` sheet with expiry, return to client; every other call validates it
+- Salesman permission check on each mutating action
+- Helpers: `nextId()`, `findRow()`, `appendRow()`, `updateRow()`
 
-Requires Lovable Cloud **email infrastructure**. Will run in this order:
-1. `email_domain--check_email_domain_status` — if no domain, surface the "Set up email domain" button and pause; resume once domain is configured.
-2. `email_domain--setup_email_infra` (creates queues + cron infra).
-3. `email_domain--scaffold_transactional_email`.
-4. Create template `daily-report.tsx` (totals: tickets count, sales, received, paid, cash in hand, profit).
-5. Create server route `/api/public/cron/daily-report` (HMAC-verified) that, for each agency, computes today's totals from Supabase and calls the send-transactional-email path with admin's email and `templateData`.
-6. Add a pg_cron job hitting that URL at `59 20 * * *` UTC (= 23:59 Saudi time, UTC+3).
+You will paste it into Apps Script editor, redeploy as Web App ("Anyone with the link"), and the same URL you sent keeps working.
 
-Until the email domain is verified, the report endpoint will exist and be callable manually from Settings ("Send today's report now"), so it's testable immediately.
+## Migration
 
-## 6. Files
+Nothing automatic. The React app's Supabase data stays in Supabase. To move existing data, export each table as CSV from Supabase and paste rows into the matching Sheet tab — column order will match what `Code.gs` expects (I'll document it at the top of `Code.gs`).
 
-**New**: `supabase-schema-v3.sql`, `src/lib/whatsapp.ts`, `src/lib/email-templates/daily-report.tsx`, `src/routes/api/public/cron/daily-report.ts`.
+## What gets lost vs the React app
 
-**Edited**: `src/lib/auth.tsx`, `src/lib/pdf.ts`, `src/routes/_app.tsx`, `src/routes/_app/staff.tsx`, `src/routes/_app/payments.tsx`, `src/routes/_app/tickets.tsx`, `src/routes/_app/settings.tsx` (add "Send today's report" button + report recipient email field).
+- No SSR / server functions / TanStack routing — pure hash routes
+- No type safety
+- PDFs will look the same (jsPDF), but tax-invoice layout will be slightly simpler
+- No auto-email cron (Apps Script `time-driven trigger` will replace it — I'll add a `sendDailyReport()` function inside `Code.gs` and tell you how to schedule it at 23:59)
+- Animations / polish reduced — focus is functional parity, not visual flourish
 
-## After you approve
+## What I will NOT delete
 
-You will need to:
-- Run `supabase-schema-v3.sql` once in SQL Editor.
-- Click "Set up email domain" when prompted, and add the NS records at your domain provider.
+The existing React code in `src/` stays in the repo so you can still open the old preview if anything breaks. The new HTML app lives in `skybird-html/`. GitHub auto-syncs both (you already have GitHub connected — every save pushes automatically).
+
+## Order of work
+
+1. Write `apps-script/Code.gs` (the backend — most important, deploy this first)
+2. `index.html` + `css/app.css` + shell (login, sidebar, router)
+3. `js/api.js`, `auth.js`, `store.js`, `format.js`, `airlines.js`, `whatsapp.js`, `pdf.js`
+4. Pages in this order: dashboard → customers/suppliers/sub-agents → tickets → payments → refunds → cash-book → reports → staff → settings
+5. Final: zip `skybird-html/` to `/mnt/documents/skybird-html.zip` for download
+
+## What I need from you to start
+
+Just **"go"**. I'll build it in one pass. After it's done you:
+
+1. Open `apps-script/Code.gs`, copy into your Apps Script project, redeploy the Web App (same URL).
+2. Open `skybird-html/index.html` in a browser (or upload the folder to any static host / GitHub Pages).
+3. First load creates the admin user — set your password.
+
+---
+
+Reply **go** to build, or tell me to drop any feature above.
