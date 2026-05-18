@@ -237,3 +237,49 @@ function sendDailyReport() {
     </table>`;
   MailApp.sendEmail({ to, subject:`Skybird Daily Report — ${new Date().toDateString()}`, htmlBody: html });
 }
+
+/* ========== Mirror endpoint (public, no auth) ==========
+ * Receives every write from the HTML app and appends/updates a row in the
+ * matching sheet tab. Tabs are auto-created with dynamic headers based on
+ * the keys present in the first row received.
+ */
+function mirror_(d) {
+  if (!d || !d.table || !d.row) return { skipped: true };
+  const name = String(d.table);
+  const row = d.row || {};
+  const op = String(d.op || 'upsert');
+  const ss = ss_();
+  let s = ss.getSheetByName(name);
+  if (!s) {
+    s = ss.insertSheet(name);
+    s.appendRow(Object.keys(row));
+  }
+  const headers = s.getRange(1, 1, 1, Math.max(1, s.getLastColumn())).getValues()[0]
+    .filter(h => h !== '' && h !== null && h !== undefined).map(String);
+  // Extend headers with any new fields
+  const newKeys = Object.keys(row).filter(k => headers.indexOf(k) === -1);
+  if (newKeys.length) {
+    s.getRange(1, headers.length + 1, 1, newKeys.length).setValues([newKeys]);
+    newKeys.forEach(k => headers.push(k));
+  }
+  const idCol = headers.indexOf('id');
+  const data = s.getDataRange().getValues();
+  if (op === 'delete') {
+    if (idCol >= 0 && row.id) {
+      for (let i = 1; i < data.length; i++) if (String(data[i][idCol]) === String(row.id)) { s.deleteRow(i + 1); break; }
+    }
+    return { ok: true };
+  }
+  // upsert
+  if (idCol >= 0 && row.id) {
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idCol]) === String(row.id)) {
+        const out = headers.map((h, j) => row[h] !== undefined ? row[h] : data[i][j]);
+        s.getRange(i + 1, 1, 1, headers.length).setValues([out]);
+        return { ok: true, updated: true };
+      }
+    }
+  }
+  s.appendRow(headers.map(h => row[h] !== undefined ? row[h] : ''));
+  return { ok: true, appended: true };
+}
