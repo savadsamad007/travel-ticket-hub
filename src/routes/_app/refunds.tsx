@@ -1,3 +1,4 @@
+import { RequirePerm } from "@/components/skybird/require-perm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
