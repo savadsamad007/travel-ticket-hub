@@ -1,0 +1,9 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/skybird-html/index.html" },
+    { "source": "/css/:path*", "destination": "/skybird-html/css/:path*" },
+    { "source": "/js/:path*", "destination": "/skybird-html/js/:path*" },
+    { "source": "/(.*)", "destination": "/skybird-html/index.html" }
+  ]
+}
