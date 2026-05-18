@@ -1,51 +1,80 @@
-# Skybird — HTML / Vanilla JS edition
+# Skybird — HTML / JS edition (Supabase + Google Sheets mirror)
 
-A single-folder static web app for your travel agency. **No build step, no npm.** All data lives in your Google Sheet via your Apps Script Web App.
+Plain static HTML+JS. **Same Supabase database** as the React app, plus every
+write is mirrored to your Google Sheet via Apps Script.
 
-## Deploy
+## How to run
 
-1. **Apps Script backend**
-   - Open https://script.google.com → New project
-   - Replace `Code.gs` contents with `apps-script/Code.gs` from this folder
-   - Save → **Deploy → Manage deployments → edit** existing Web App
-   - Execute as: **Me**, Who has access: **Anyone**
-   - The Web App URL must match the one in `js/api.js` (`WEB_APP_URL`). It already does.
-   - First run: in the editor, run `doPost` once → grant permissions when prompted.
+1. Open `index.html` in any browser (or upload the folder to GitHub Pages,
+   Netlify, S3, Google Drive — anywhere that serves static files).
+2. Sign in with the **same email + password** you use in the React app.
+   Brand-new users self-register and become admin of their own agency.
 
-2. **App (static files)**
-   - Either open `index.html` locally in a browser, OR
-   - Upload the whole `skybird-html/` folder to any static host:
-     - GitHub Pages
-     - Netlify (drag & drop)
-     - Cloudflare Pages
-     - Google Drive (publish folder)
-     - Your own server
+No build step, no npm, no server.
 
-3. **First account**
-   - Open the app → Sign up tab → create your account
-   - The **first** account automatically becomes admin.
+## Architecture
 
-## Daily 23:59 auto email report
+```
+Browser
+  ├── Supabase (https://zshyqwviuuhplgyiatdw.supabase.co)   ← source of truth
+  └── Apps Script Web App  ← fire-and-forget mirror of every write
+        → Google Sheet  1CcpkHYyL3WWgu4X2p2WUTYjBcz1hNqJjq7CrF-dsDNg
+```
 
-In the Apps Script editor:
-- **Triggers → + Add Trigger**
-- Function: `sendDailyReport`
-- Event source: Time-driven
-- Type: Day timer → **11pm to midnight**
-- The report goes to the email set in **Settings → Daily report email** (falls back to agency email).
+- **Reads** go to Supabase only (fast, RLS-protected, multi-user safe).
+- **Writes** go to Supabase first; on success the same row is POSTed to your
+  Apps Script `mirror` action which appends/updates a row in the matching
+  tab (Tickets, Payments, Customers, …). Tabs auto-create with headers
+  derived from the row fields.
+- If the mirror fails (sheet down, quota, network), the app keeps working —
+  Supabase is the truth.
 
-## Features
+## Google Sheets setup (one-time)
 
-- Login / register, first user = admin
-- Dashboard with stats (profit hidden for salesmen)
-- Tickets with airline autocomplete (type `SV` → Saudia), auto `/` every 3 chars in route (`RUH/JED/DXB`), quick-add customer button
-- Customers / Suppliers / Sub-agents
-- Payments (Receive / Pay) — voucher PDF + WhatsApp share
-- Refunds
-- Cash book with cash-in-hand
-- Reports (date range)
-- Staff with per-user permission checkboxes (salesman never sees profit / delete)
-- Settings — agency name, VAT, logo, report email
-- Tax invoice PDF (A4, 15% VAT auto when VAT number set)
-- Payment voucher PDF (A5, amount-in-words)
-- WhatsApp share buttons everywhere
+1. Open your Apps Script project (the one already deployed at the URL in
+   `js/api.js`) and **replace `Code.gs`** with `apps-script/Code.gs` from
+   this folder.
+2. **Deploy → Manage deployments → Edit (pencil) → New version → Deploy.**
+   Keep the same Web App URL.
+3. The first mirror call auto-creates every tab.
+
+The Apps Script `auth.*` / per-table actions stay available so older HTML
+deployments keep working — but the React parity build uses **only** the
+`mirror` action.
+
+## Daily auto-email at 23:59
+
+Configure once in Apps Script:
+
+> **Triggers → + Add trigger → Function: `sendDailyReport` → Time-driven →
+> Day timer → 11pm–12am.**
+
+It reads `agency_profile` from the Sheet and emails the summary to
+`report_email`. Since the Sheet mirrors every write, the daily report
+stays in sync without a separate Supabase cron.
+
+> Want the daily email computed from Supabase directly instead? Ask and
+> I'll add a Supabase Edge Function / pg_cron variant.
+
+## Permissions
+
+Same as the React app:
+- First user in an agency is **admin** (full access).
+- Admin creates salesmen from **Staff** and ticks which pages they can
+  use. Salesmen can never see profit/cost or delete.
+- All access is enforced server-side via Supabase RLS — even if someone
+  edits the HTML, the database refuses unauthorized rows.
+
+## Files
+
+```
+skybird-html/
+├── index.html          ← single page (login + app shell)
+├── css/app.css
+├── js/
+│   ├── api.js          ← gas(action, data) → Supabase + mirror to Sheet
+│   ├── auth.js         ← Supabase Auth (email + password)
+│   ├── store.js, router.js, ui.js, format.js, airlines.js, whatsapp.js, pdf.js
+│   └── pages/          ← dashboard, tickets, payments, customers, …
+└── apps-script/Code.gs ← paste into your Apps Script editor
+```
