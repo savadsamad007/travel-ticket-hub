@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Skybird — Travel Agency</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/app.css" />
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
@@ -13,60 +16,73 @@
 
 <!-- LOGIN -->
 <div id="login-view" class="hidden auth-shell">
-  <div class="auth-card">
-    <div class="brand">
-      <div class="brand-logo">✈</div>
-      <h1>Skybird</h1>
-      <p class="muted">Travel agency management</p>
+  <div class="auth-hero">
+    <div class="auth-hero-content">
+      <div class="auth-brand">
+        <div class="auth-brand-logo">✈</div>
+        <div class="auth-brand-name">Skybird</div>
+      </div>
     </div>
-    <div class="tabs">
-      <button class="tab active" data-tab="login">Sign in</button>
-      <button class="tab" data-tab="register">Create account</button>
+    <div class="auth-hero-content">
+      <h1>Run your travel<br/>agency, beautifully.</h1>
+      <p>Tickets, suppliers, sub-agents, customers, refunds &amp; reports — all in one colorful dashboard.</p>
     </div>
-    <form id="form-login" class="form">
-      <label>Email</label><input type="email" name="email" required autocomplete="email" />
-      <label>Password</label><input type="password" name="password" required autocomplete="current-password" />
-      <button class="btn-primary" type="submit">Sign in</button>
-      <p id="login-error" class="error"></p>
-    </form>
-    <form id="form-register" class="form hidden">
-      <label>Full name</label><input name="name" required />
-      <label>Email</label><input type="email" name="email" required />
-      <label>Password</label><input type="password" name="password" required minlength="6" />
-      <p class="muted small">First account becomes admin. Others default to salesman with limited access — admin can grant more in Staff page.</p>
-      <button class="btn-primary" type="submit">Create account</button>
-      <p id="register-error" class="error"></p>
-    </form>
+    <div class="auth-hero-foot">© Skybird Billing · SAR</div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-card">
+      <div class="auth-card-mini-brand">
+        <div class="logo">✈</div>
+        <div style="font-size:20px;font-weight:700">Skybird</div>
+      </div>
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in to continue to Skybird. New staff accounts are created by your admin from the Staff page.</p>
+      <div class="tabs">
+        <button class="tab active" data-tab="login">Sign in</button>
+        <button class="tab" data-tab="register">Create account</button>
+      </div>
+      <form id="form-login" class="form">
+        <label>Email</label><input type="email" name="email" required autocomplete="email" />
+        <label>Password</label><input type="password" name="password" required autocomplete="current-password" />
+        <button class="btn-primary" type="submit">Sign in</button>
+        <p id="login-error" class="error"></p>
+      </form>
+      <form id="form-register" class="form hidden">
+        <label>Full name</label><input name="name" required />
+        <label>Email</label><input type="email" name="email" required />
+        <label>Password</label><input type="password" name="password" required minlength="6" />
+        <p class="muted small" style="margin-top:8px">First account becomes admin. Others default to salesman with limited access — admin can grant more in Staff page.</p>
+        <button class="btn-primary" type="submit">Create account</button>
+        <p id="register-error" class="error"></p>
+      </form>
+    </div>
   </div>
 </div>
 
 <!-- APP SHELL -->
 <div id="app-view" class="hidden app-shell">
   <aside class="sidebar">
-    <div class="brand-mini">
-      <span class="brand-logo">✈</span>
-      <span id="agency-name">Skybird</span>
+    <div class="sidebar-head">
+      <div class="sidebar-logo">✈</div>
+      <div style="min-width:0">
+        <div class="sidebar-title" id="agency-name">Skybird</div>
+        <div class="sidebar-subtitle">Skybird · <span id="user-role">—</span></div>
+      </div>
     </div>
     <nav id="nav"></nav>
     <div class="sidebar-foot">
-      <div class="user-chip">
-        <div class="avatar" id="user-avatar">?</div>
-        <div>
-          <div id="user-name" class="user-name">—</div>
-          <div id="user-role" class="user-role">—</div>
-        </div>
-      </div>
-      <button id="btn-logout" class="btn-ghost">Sign out</button>
+      <div class="user-email" id="user-name">—</div>
+      <button id="btn-logout" class="btn-signout"><span>⎋</span> Sign out</button>
     </div>
   </aside>
   <main class="main">
-    <div id="route"></div>
+    <header class="topbar">Currency: <strong>SAR</strong></header>
+    <div class="content"><div id="route"></div></div>
   </main>
 </div>
 
 <div id="toast-stack"></div>
-
-<!-- modal root -->
 <div id="modal-root"></div>
 
 <script src="js/api.js"></script>
@@ -81,11 +97,10 @@
 <script src="js/pages/dashboard.js"></script>
 <script src="js/pages/tickets.js"></script>
 <script src="js/pages/customers.js"></script>
-<script src="js/pages/suppliers.js"></script>
-<script src="js/pages/sub-agents.js"></script>
 <script src="js/pages/payments.js"></script>
 <script src="js/pages/refunds.js"></script>
 <script src="js/pages/cash-book.js"></script>
+<script src="js/pages/statements.js"></script>
 <script src="js/pages/reports.js"></script>
 <script src="js/pages/staff.js"></script>
 <script src="js/pages/settings.js"></script>

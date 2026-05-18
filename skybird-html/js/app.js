@@ -2,9 +2,8 @@ function renderShell(){
   if (Auth.user) {
     $("#login-view").classList.add("hidden");
     $("#app-view").classList.remove("hidden");
-    $("#user-name").textContent = Auth.user.name || Auth.user.email;
-    $("#user-role").textContent = Auth.user.role;
-    $("#user-avatar").textContent = (Auth.user.name||Auth.user.email||"?").charAt(0).toUpperCase();
+    $("#user-name").textContent = Auth.user.email;
+    $("#user-role").textContent = Auth.role || "—";
     $("#agency-name").textContent = Auth.agency?.agency_name || "Skybird";
     if (!location.hash) location.hash = "#/dashboard";
     renderRoute();

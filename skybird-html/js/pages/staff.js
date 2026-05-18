@@ -12,13 +12,12 @@ Pages.staff = async function(){
 
   const list = h(`<div></div>`); wrap.appendChild(list);
   const cols = [
-    { key:"name", label:"Name" },
-    { key:"email", label:"Email" },
-    { label:"Role", render: r => `<span class="badge ${r.role==='admin'?'info':''}">${r.role}</span>`, html:true },
-    { label:"Permissions", render: r => r.role==='admin' ? '<span class="muted">All (admin)</span>' : (Object.keys(r.permissions||{}).filter(k=>r.permissions[k]).join(", ") || "—") },
+    { label:"Name", render: r => `<div style="display:flex;align-items:center;gap:8px"><span>${r.role==='admin'?'🛡':'👤'}</span><span style="font-weight:600">${escapeHtml(r.name||'—')}</span>${r.id===Auth.user.id?' <span class="muted small">(you)</span>':''}</div>`, html:true },
+    { label:"Role", render: r => `<span class="badge ${r.role==='admin'?'info':''}">${escapeHtml(r.role)}</span>`, html:true },
+    { label:"Permissions", render: r => r.role==='admin' ? '<span class="muted">All (admin)</span>' : (Object.keys(r.permissions||{}).filter(k=>r.permissions[k]).map(k=>k.replace('_',' ')).join(", ") || '<span class="muted">—</span>'), html:true },
     { label:"Actions", render: r => rowActions([
-      r.role !== "admin" && { label:"⚙️", title:"Edit permissions", onClick: () => openPerms(r, reload) },
-      r.id !== Auth.user.id && { label:"🗑️", title:"Delete user", onClick: async () => { if (await confirmDialog("Delete this user?")) { await gas("staff.delete",{id:r.id}); reload(); toast("Deleted","success"); } } },
+      r.role !== "admin" && { label:"⚙", title:"Edit permissions", onClick: () => openPerms(r, reload) },
+      r.id !== Auth.user.id && { label:"🗑", title:"Delete user", onClick: async () => { if (await confirmDialog("Delete this user?")) { await gas("staff.delete",{id:r.id}); reload(); toast("Deleted","success"); } } },
     ]) },
   ];
   list.appendChild(tableEl(cols, staff));
