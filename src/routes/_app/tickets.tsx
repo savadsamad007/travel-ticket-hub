@@ -1,11 +1,13 @@
 import { RequirePerm } from "@/components/skybird/require-perm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Receipt, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, X, FileText, MessageCircle } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
 import { getOwnerId } from "@/lib/data";
-import { useIsAdmin } from "@/lib/auth";
+import { useAuth, useIsAdmin } from "@/lib/auth";
 import { formatRoute } from "@/lib/format";
+import { buildTicketInvoice } from "@/lib/pdf";
+import { openWhatsApp } from "@/lib/whatsapp";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/skybird/ui";
 import { AirlineAutocomplete } from "@/components/skybird/airline-autocomplete";
