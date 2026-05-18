@@ -1,15 +1,16 @@
 const ROUTES = [
-  { path:"dashboard",  icon:"📊", label:"Dashboard",  render: () => Pages.dashboard(),  perm:null },
-  { path:"tickets",    icon:"🎫", label:"Tickets",    render: () => Pages.tickets(),    perm:"tickets" },
-  { path:"refunds",    icon:"↩️", label:"Refunds",    render: () => Pages.refunds(),    perm:"refunds" },
-  { path:"payments",   icon:"💵", label:"Payments",   render: () => Pages.payments(),   perm:"payments" },
-  { path:"customers",  icon:"👤", label:"Customers",  render: () => Pages.customers(),  perm:"customers" },
-  { path:"suppliers",  icon:"🏢", label:"Suppliers",  render: () => Pages.suppliers(),  perm:"suppliers" },
-  { path:"sub-agents", icon:"👥", label:"Sub-agents", render: () => Pages.subAgents(),  perm:"sub_agents" },
-  { path:"cash-book",  icon:"💰", label:"Cash book",  render: () => Pages.cashBook(),   perm:"cash_book" },
-  { path:"reports",    icon:"📈", label:"Reports",    render: () => Pages.reports(),    perm:"reports" },
-  { path:"staff",      icon:"🛡️", label:"Staff",      render: () => Pages.staff(),      adminOnly:true },
-  { path:"settings",   icon:"⚙️", label:"Settings",   render: () => Pages.settings(),   adminOnly:true },
+  { path:"dashboard",  icon:"▦", label:"Dashboard",  render: () => Pages.dashboard(),  perm:null },
+  { path:"tickets",    icon:"✈", label:"Tickets",    render: () => Pages.tickets(),    perm:"tickets" },
+  { path:"suppliers",  icon:"⛨", label:"Suppliers",  render: () => Pages.suppliers(),  perm:"suppliers" },
+  { path:"sub-agents", icon:"♣", label:"Sub-agents", render: () => Pages.subAgents(),  perm:"sub_agents" },
+  { path:"customers",  icon:"☻", label:"Customers",  render: () => Pages.customers(),  perm:"customers" },
+  { path:"payments",   icon:"💳", label:"Payments",   render: () => Pages.payments(),   perm:"payments" },
+  { path:"cash-book",  icon:"💵", label:"Cash in Hand", render: () => Pages.cashBook(), perm:"cash_book" },
+  { path:"refunds",    icon:"↺", label:"Refunds",    render: () => Pages.refunds(),    perm:"refunds" },
+  { path:"statements", icon:"📒", label:"Statements", render: () => Pages.statements(), perm:"statements" },
+  { path:"reports",    icon:"📊", label:"Reports",    render: () => Pages.reports(),    perm:"reports" },
+  { path:"staff",      icon:"🛡", label:"Staff",      render: () => Pages.staff(),      adminOnly:true },
+  { path:"settings",   icon:"⚙", label:"Settings",   render: () => Pages.settings(),   adminOnly:true },
 ];
 
 function visibleRoutes(){

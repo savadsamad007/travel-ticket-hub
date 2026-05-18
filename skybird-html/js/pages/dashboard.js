@@ -17,16 +17,16 @@ Pages.dashboard = async function(){
   const showProfit = Auth.isAdmin();
 
   const stats = h(`<div class="grid grid-4"></div>`);
-  stats.appendChild(statCard("Total tickets", String(tickets.length)));
-  if (showProfit) stats.appendChild(statCard("Total sales", fmt(sale), "Cost "+fmt(cost), "sky"));
-  if (showProfit) stats.appendChild(statCard("Net profit", fmt(sale-cost), null, "sunset"));
-  stats.appendChild(statCard("Refunds", String(refunds.length)));
+  stats.appendChild(statCard("Total tickets", String(tickets.length), null, "", "✈"));
+  if (showProfit) stats.appendChild(statCard("Total sales", fmt(sale), "Cost "+fmt(cost), "sky", "📈"));
+  if (showProfit) stats.appendChild(statCard("Net profit", fmt(sale-cost), null, "sunset", "💼"));
+  stats.appendChild(statCard("Refunds", String(refunds.length), null, "", "↺"));
   wrap.appendChild(stats);
 
-  const stats2 = h(`<div class="grid grid-3" style="margin-top:14px"></div>`);
-  stats2.appendChild(statCard("Suppliers", String(suppliers.length), null, "sky"));
-  stats2.appendChild(statCard("Sub-agents", String(agents.length)));
-  stats2.appendChild(statCard("Customers", String(customers.length), null, "sunset"));
+  const stats2 = h(`<div class="grid grid-3" style="margin-top:16px"></div>`);
+  stats2.appendChild(statCard("Suppliers", String(suppliers.length), null, "sky", "⛨"));
+  stats2.appendChild(statCard("Sub-agents", String(agents.length), null, "", "♣"));
+  stats2.appendChild(statCard("Customers", String(customers.length), null, "sunset", "☻"));
   wrap.appendChild(stats2);
 
   const cards = h(`<div class="grid grid-2" style="margin-top:14px"></div>`);
