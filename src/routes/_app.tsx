@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
-  const { user, loading, signOut, role, agencyName } = useAuth();
+  const { user, loading, signOut, role, agencyName, can } = useAuth();
   const loc = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -30,18 +30,18 @@ function AppLayout() {
   const isAdmin = role === "admin";
 
   const nav = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, admin: false },
-    { to: "/tickets", label: "Tickets", icon: Ticket, admin: false },
-    { to: "/suppliers", label: "Suppliers", icon: Building2, admin: false },
-    { to: "/sub-agents", label: "Sub-agents", icon: UserCheck, admin: false },
-    { to: "/customers", label: "Customers", icon: Users, admin: false },
-    { to: "/payments", label: "Payments", icon: Wallet, admin: false },
-    { to: "/cash-book", label: "Cash in Hand", icon: Banknote, admin: false },
-    { to: "/refunds", label: "Refunds", icon: RotateCcw, admin: false },
-    { to: "/statements", label: "Statements", icon: BookText, admin: false },
-    { to: "/reports", label: "Reports", icon: FileBarChart, admin: false },
-    { to: "/staff", label: "Staff", icon: ShieldCheck, admin: true },
-    { to: "/settings", label: "Settings", icon: Settings, admin: true },
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true },
+    { to: "/tickets", label: "Tickets", icon: Ticket, show: can("tickets") },
+    { to: "/suppliers", label: "Suppliers", icon: Building2, show: can("suppliers") },
+    { to: "/sub-agents", label: "Sub-agents", icon: UserCheck, show: can("sub_agents") },
+    { to: "/customers", label: "Customers", icon: Users, show: can("customers") },
+    { to: "/payments", label: "Payments", icon: Wallet, show: can("payments") },
+    { to: "/cash-book", label: "Cash in Hand", icon: Banknote, show: can("cash_book") },
+    { to: "/refunds", label: "Refunds", icon: RotateCcw, show: can("refunds") },
+    { to: "/statements", label: "Statements", icon: BookText, show: can("statements") },
+    { to: "/reports", label: "Reports", icon: FileBarChart, show: can("reports") },
+    { to: "/staff", label: "Staff", icon: ShieldCheck, show: isAdmin },
+    { to: "/settings", label: "Settings", icon: Settings, show: isAdmin },
   ] as const;
 
   return (
@@ -60,7 +60,7 @@ function AppLayout() {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {nav.filter((n) => !n.admin || isAdmin).map((item) => {
+          {nav.filter((n) => n.show).map((item) => {
             const Icon = item.icon;
             const active = loc.pathname === item.to || loc.pathname.startsWith(item.to + "/");
             return (

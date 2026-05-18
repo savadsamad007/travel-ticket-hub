@@ -1,3 +1,4 @@
+import { RequirePerm } from "@/components/skybird/require-perm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
@@ -14,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { buildLedgerPDF } from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/reports")({
-  component: ReportsPage,
+  component: () => (<RequirePerm perm="reports"><ReportsPage /></RequirePerm>),
 });
 
 function ReportsPage() {

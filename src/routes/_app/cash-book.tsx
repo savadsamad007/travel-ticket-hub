@@ -1,3 +1,4 @@
+import { RequirePerm } from "@/components/skybird/require-perm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Wallet, TrendingDown, TrendingUp } from "lucide-react";
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_app/cash-book")({
-  component: CashBookPage,
+  component: () => (<RequirePerm perm="cash_book"><CashBookPage /></RequirePerm>),
 });
 
 function CashBookPage() {
