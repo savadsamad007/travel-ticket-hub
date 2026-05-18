@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { buildLedgerPDF } from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/reports")({
-  component: ReportsPage,
+  component: () => (<RequirePerm perm="reports"><ReportsPage /></RequirePerm>),
 });
 
 function ReportsPage() {

@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/refunds")({
-  component: RefundsPage,
+  component: () => (<RequirePerm perm="refunds"><RefundsPage /></RequirePerm>),
 });
 
 function RefundsPage() {

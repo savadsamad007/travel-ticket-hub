@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_app/tickets")({
-  component: TicketsPage,
+  component: () => (<RequirePerm perm="tickets"><TicketsPage /></RequirePerm>),
 });
 
 type SvcRow = { service_type: string; description: string; cost_price: string; sale_price: string };

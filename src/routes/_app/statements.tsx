@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { buildLedgerPDF } from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/statements")({
-  component: StatementsPage,
+  component: () => (<RequirePerm perm="statements"><StatementsPage /></RequirePerm>),
 });
 
 type Entry = {
