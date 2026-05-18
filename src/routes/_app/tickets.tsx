@@ -55,6 +55,7 @@ const SERVICE_TYPES = [
 
 function TicketsPage() {
   const isAdmin = useIsAdmin();
+  const { agencyProfile } = useAuth();
   const [tickets, setTickets] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -375,6 +376,19 @@ function TicketsPage() {
                   <TableCell><span className={`text-xs px-2 py-1 rounded-full ${statusTone[t.status]}`}>{t.status}</span></TableCell>
                   <TableCell className="text-right">
                     <Button size="icon" variant="ghost" title="Add service" onClick={() => { setSvcTicket(t); setSvcOpen(true); }}><Receipt className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" title="Invoice PDF" onClick={() => {
+                      const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
+                      buildTicketInvoice({
+                        agency: agencyProfile ?? {}, ticket: t, services: services[t.id] ?? [],
+                        buyer_name: buyer?.name ?? "—", buyer_phone: buyer?.phone, buyer_email: buyer?.email,
+                      });
+                    }}><FileText className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" title="Share on WhatsApp" onClick={() => {
+                      const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
+                      const totalSale = Number(t.sale_price) + svcTotal(t.id, "sale_price");
+                      const text = `*${agencyProfile?.agency_name ?? "Skybird"}*\nInvoice ${t.ticket_no || t.id.slice(0,8).toUpperCase()}\nPassenger: ${t.passenger_name}\nRoute: ${t.route ?? "—"}${t.travel_date ? `\nTravel: ${t.travel_date}` : ""}${t.airline ? `\nAirline: ${t.airline}` : ""}${t.pnr ? `\nPNR: ${t.pnr}` : ""}\nTotal: ${fmt(totalSale)}`;
+                      openWhatsApp(buyer?.phone, text);
+                    }}><MessageCircle className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => startEdit(t)}><Pencil className="h-4 w-4" /></Button>
                     {isAdmin && <Button size="icon" variant="ghost" onClick={() => remove(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </TableCell>
