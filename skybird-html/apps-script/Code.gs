@@ -39,6 +39,9 @@ function doPost(e) {
     if (action === 'auth.register') return ok(authRegister(data));
     if (action === 'auth.me')       return ok(authMe(token));
 
+    // Public mirror endpoint — appends/updates a row from the HTML app (no auth)
+    if (action === 'mirror')        return ok(mirror_(data));
+
     const user = requireAuth(token);
 
     const handlers = {
