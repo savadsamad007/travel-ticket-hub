@@ -60,7 +60,7 @@ function AppLayout() {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {nav.filter((n) => !n.admin || isAdmin).map((item) => {
+          {nav.filter((n) => n.show).map((item) => {
             const Icon = item.icon;
             const active = loc.pathname === item.to || loc.pathname.startsWith(item.to + "/");
             return (
