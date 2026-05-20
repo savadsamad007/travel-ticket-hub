@@ -12,7 +12,12 @@ const SHEETS_WEB_APP_URL =
 
 // Supabase JS is loaded via CDN in index.html: window.supabase
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+  },
 });
 
 // ---- Google Sheets mirror (fire and forget) ----
@@ -28,36 +33,59 @@ function mirrorToSheet(table, row, op) {
 }
 
 // ---- Helpers ----
+function isSessionProblem(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  return msg.includes("jwt") || msg.includes("token") || msg.includes("session") || msg.includes("not signed in") || msg.includes("unauthorized");
+}
+
+async function withSessionRetry(work) {
+  try {
+    return await work();
+  } catch (e) {
+    if (!isSessionProblem(e) || !Auth.user) throw e;
+    await Auth.refreshSessionIfNeeded(true);
+    await Auth.loadMe();
+    Store.cache = {};
+    return await work();
+  }
+}
+
 function ownerId() {
   if (!Auth.user) throw new Error("Not signed in");
   return Auth.agencyOwner || Auth.user.id;
 }
 
 async function sbList(table, opts = {}) {
-  let q = sb.from(table).select("*").eq("owner_id", ownerId());
-  if (opts.order) q = q.order(opts.order, { ascending: false });
-  else q = q.order("created_at", { ascending: false });
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-  return data || [];
+  return withSessionRetry(async () => {
+    let q = sb.from(table).select("*").eq("owner_id", ownerId());
+    if (opts.order) q = q.order(opts.order, { ascending: false });
+    else q = q.order("created_at", { ascending: false });
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
 }
 
 async function sbUpsert(table, row) {
-  const payload = { ...row, owner_id: ownerId() };
-  if (!payload.id) delete payload.id;
-  // Strip empties on numeric/uuid-ish optional fields
-  Object.keys(payload).forEach((k) => { if (payload[k] === "") delete payload[k]; });
-  const { data, error } = await sb.from(table).upsert(payload).select().single();
-  if (error) throw new Error(error.message);
-  mirrorToSheet(table, data, "upsert");
-  return data;
+  return withSessionRetry(async () => {
+    const payload = { ...row, owner_id: ownerId() };
+    if (!payload.id) delete payload.id;
+    // Strip empties on numeric/uuid-ish optional fields.
+    Object.keys(payload).forEach((k) => { if (payload[k] === "" || payload[k] === undefined) delete payload[k]; });
+    const { data, error } = await sb.from(table).upsert(payload).select().single();
+    if (error) throw new Error(error.message);
+    mirrorToSheet(table, data, "upsert");
+    return data;
+  });
 }
 
 async function sbDelete(table, id) {
-  const { error } = await sb.from(table).delete().eq("id", id);
-  if (error) throw new Error(error.message);
-  mirrorToSheet(table, { id }, "delete");
-  return { id };
+  return withSessionRetry(async () => {
+    const { error } = await sb.from(table).delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    mirrorToSheet(table, { id }, "delete");
+    return { id };
+  });
 }
 
 // ---- Dispatch table: same action strings the pages already call ----
@@ -98,22 +126,24 @@ const ACTIONS = {
 
   // Agency profile
   "agency.get": async () => {
-    const { data, error } = await sb
-      .from("agency_profile")
-      .select("*")
-      .eq("agency_owner", ownerId())
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return {};
-    return {
-      agency_name: data.agency_name,
-      phone: data.phone,
-      email: data.email,
-      address: data.address,
-      vat_no: data.vat_number,
-      logo_url: data.logo_url,
-      report_email: data.report_email,
-    };
+    return withSessionRetry(async () => {
+      const { data, error } = await sb
+        .from("agency_profile")
+        .select("*")
+        .eq("agency_owner", ownerId())
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return {};
+      return {
+        agency_name: data.agency_name,
+        phone: data.phone,
+        email: data.email,
+        address: data.address,
+        vat_no: data.vat_number,
+        logo_url: data.logo_url,
+        report_email: data.report_email,
+      };
+    });
   },
   "agency.save": async (d) => {
     const payload = {
@@ -127,14 +157,16 @@ const ACTIONS = {
       report_email: d.report_email || null,
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await sb
-      .from("agency_profile")
-      .upsert(payload, { onConflict: "agency_owner" })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    mirrorToSheet("agency_profile", data, "upsert");
-    return data;
+    return withSessionRetry(async () => {
+      const { data, error } = await sb
+        .from("agency_profile")
+        .upsert(payload, { onConflict: "agency_owner" })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      mirrorToSheet("agency_profile", data, "upsert");
+      return data;
+    });
   },
 
   // Staff
@@ -154,14 +186,16 @@ const ACTIONS = {
     }));
   },
   "staff.setPermissions": async (d) => {
-    const { error } = await sb
-      .from("user_agency")
-      .update({ permissions: d.permissions || {} })
-      .eq("user_id", d.id)
-      .eq("agency_owner", ownerId());
-    if (error) throw new Error(error.message);
-    mirrorToSheet("user_agency", { user_id: d.id, permissions: d.permissions }, "perms");
-    return { id: d.id };
+    return withSessionRetry(async () => {
+      const { error } = await sb
+        .from("user_agency")
+        .update({ permissions: d.permissions || {} })
+        .eq("user_id", d.id)
+        .eq("agency_owner", ownerId());
+      if (error) throw new Error(error.message);
+      mirrorToSheet("user_agency", { user_id: d.id, permissions: d.permissions }, "perms");
+      return { id: d.id };
+    });
   },
   "staff.setRole": async (d) => {
     const { error } = await sb
@@ -193,17 +227,14 @@ const ACTIONS = {
     if (e1) throw new Error(e1.message);
     const newId = su.user?.id;
     if (!newId) throw new Error("Could not create user (may already exist)");
-    const { error: e2 } = await sb.from("user_agency").upsert(
-      {
-        user_id: newId,
-        agency_owner: ownerId(),
-        role: d.role || "salesman",
-        full_name: d.name || d.email,
-        permissions: d.role === "admin" ? {} : (d.permissions || { tickets: true, customers: true, payments: true }),
-      },
-      { onConflict: "user_id" },
-    );
-    if (e2) throw new Error(e2.message);
+    const payload = {
+      p_user_id: newId,
+      p_role: d.role || "salesman",
+      p_full_name: d.name || d.email,
+      p_permissions: d.role === "admin" ? {} : (d.permissions || { tickets: true, customers: true, payments: true }),
+    };
+    const { error: rpcError } = await sb.rpc("admin_attach_staff", payload);
+    if (rpcError) throw new Error(rpcError.message.includes("Could not find") ? "Please run skybird-cloud-fix.sql first, then create staff again." : rpcError.message);
     return { id: newId };
   },
 
