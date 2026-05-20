@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
-export type AppRole = "admin" | "salesman";
+export type AppRole = "super_admin" | "admin" | "salesman";
 export type PermKey =
   | "tickets" | "refunds" | "payments" | "customers"
   | "suppliers" | "sub_agents" | "cash_book" | "reports" | "statements";
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       if (data.session?.user) await loadAgency(data.session.user.id);
-      setLoading(false);
+  const can = (k: PermKey) => role === "admin" || role === "super_admin" ? true : !!permissions[k];
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -91,5 +91,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export const useAuth = () => useContext(Ctx);
-export const useIsAdmin = () => useContext(Ctx).role === "admin";
+export const useIsAdmin = () => { const r = useContext(Ctx).role; return r === "admin" || r === "super_admin"; };
 export const useCan = (k: PermKey) => useContext(Ctx).can(k);

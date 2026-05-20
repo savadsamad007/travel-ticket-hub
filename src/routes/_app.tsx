@@ -27,7 +27,7 @@ function AppLayout() {
   }
   if (!user) return <Navigate to="/login" />;
 
-  const isAdmin = role === "admin";
+  const isAdmin = role === "admin" || role === "super_admin";
 
   const nav = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true },
