@@ -12,7 +12,12 @@ const SHEETS_WEB_APP_URL =
 
 // Supabase JS is loaded via CDN in index.html: window.supabase
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+  },
 });
 
 // ---- Google Sheets mirror (fire and forget) ----
@@ -28,36 +33,59 @@ function mirrorToSheet(table, row, op) {
 }
 
 // ---- Helpers ----
+function isSessionProblem(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  return msg.includes("jwt") || msg.includes("token") || msg.includes("session") || msg.includes("not signed in") || msg.includes("unauthorized");
+}
+
+async function withSessionRetry(work) {
+  try {
+    return await work();
+  } catch (e) {
+    if (!isSessionProblem(e) || !Auth.user) throw e;
+    await Auth.refreshSessionIfNeeded(true);
+    await Auth.loadMe();
+    Store.cache = {};
+    return await work();
+  }
+}
+
 function ownerId() {
   if (!Auth.user) throw new Error("Not signed in");
   return Auth.agencyOwner || Auth.user.id;
 }
 
 async function sbList(table, opts = {}) {
-  let q = sb.from(table).select("*").eq("owner_id", ownerId());
-  if (opts.order) q = q.order(opts.order, { ascending: false });
-  else q = q.order("created_at", { ascending: false });
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-  return data || [];
+  return withSessionRetry(async () => {
+    let q = sb.from(table).select("*").eq("owner_id", ownerId());
+    if (opts.order) q = q.order(opts.order, { ascending: false });
+    else q = q.order("created_at", { ascending: false });
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
 }
 
 async function sbUpsert(table, row) {
-  const payload = { ...row, owner_id: ownerId() };
-  if (!payload.id) delete payload.id;
-  // Strip empties on numeric/uuid-ish optional fields
-  Object.keys(payload).forEach((k) => { if (payload[k] === "") delete payload[k]; });
-  const { data, error } = await sb.from(table).upsert(payload).select().single();
-  if (error) throw new Error(error.message);
-  mirrorToSheet(table, data, "upsert");
-  return data;
+  return withSessionRetry(async () => {
+    const payload = { ...row, owner_id: ownerId() };
+    if (!payload.id) delete payload.id;
+    // Strip empties on numeric/uuid-ish optional fields.
+    Object.keys(payload).forEach((k) => { if (payload[k] === "" || payload[k] === undefined) delete payload[k]; });
+    const { data, error } = await sb.from(table).upsert(payload).select().single();
+    if (error) throw new Error(error.message);
+    mirrorToSheet(table, data, "upsert");
+    return data;
+  });
 }
 
 async function sbDelete(table, id) {
-  const { error } = await sb.from(table).delete().eq("id", id);
-  if (error) throw new Error(error.message);
-  mirrorToSheet(table, { id }, "delete");
-  return { id };
+  return withSessionRetry(async () => {
+    const { error } = await sb.from(table).delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    mirrorToSheet(table, { id }, "delete");
+    return { id };
+  });
 }
 
 // ---- Dispatch table: same action strings the pages already call ----
