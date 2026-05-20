@@ -126,22 +126,24 @@ const ACTIONS = {
 
   // Agency profile
   "agency.get": async () => {
-    const { data, error } = await sb
-      .from("agency_profile")
-      .select("*")
-      .eq("agency_owner", ownerId())
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return {};
-    return {
-      agency_name: data.agency_name,
-      phone: data.phone,
-      email: data.email,
-      address: data.address,
-      vat_no: data.vat_number,
-      logo_url: data.logo_url,
-      report_email: data.report_email,
-    };
+    return withSessionRetry(async () => {
+      const { data, error } = await sb
+        .from("agency_profile")
+        .select("*")
+        .eq("agency_owner", ownerId())
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return {};
+      return {
+        agency_name: data.agency_name,
+        phone: data.phone,
+        email: data.email,
+        address: data.address,
+        vat_no: data.vat_number,
+        logo_url: data.logo_url,
+        report_email: data.report_email,
+      };
+    });
   },
   "agency.save": async (d) => {
     const payload = {
@@ -155,14 +157,16 @@ const ACTIONS = {
       report_email: d.report_email || null,
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await sb
-      .from("agency_profile")
-      .upsert(payload, { onConflict: "agency_owner" })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    mirrorToSheet("agency_profile", data, "upsert");
-    return data;
+    return withSessionRetry(async () => {
+      const { data, error } = await sb
+        .from("agency_profile")
+        .upsert(payload, { onConflict: "agency_owner" })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      mirrorToSheet("agency_profile", data, "upsert");
+      return data;
+    });
   },
 
   // Staff
