@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { withSupabaseRetry } from "@/lib/supabase-session";
 import { PageHeader } from "@/components/skybird/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,9 @@ function SettingsPage() {
         opening_cash: Number(form.opening_cash || 0),
         updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase.from("agency_profile").upsert(payload, { onConflict: "agency_owner" });
+      const { error } = await withSupabaseRetry(() =>
+        supabase.from("agency_profile").upsert(payload, { onConflict: "agency_owner" }),
+      );
       if (error) throw error;
       toast.success("Saved");
       await refreshAgency();
