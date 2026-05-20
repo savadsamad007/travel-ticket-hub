@@ -14,7 +14,7 @@ type AuthCtx = {
   can: (k: PermKey) => boolean;
   agencyOwner: string | null;
   agencyName: string;
-  agencyProfile: any | null;
+  agencyProfile: Record<string, unknown> | null;
   refreshAgency: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<Permissions>({});
   const [agencyOwner, setAgencyOwner] = useState<string | null>(null);
   const [agencyName, setAgencyName] = useState("Skybird");
-  const [agencyProfile, setAgencyProfile] = useState<any | null>(null);
+  const [agencyProfile, setAgencyProfile] = useState<Record<string, unknown> | null>(null);
 
   function resetAgency() {
     setRole(null);
