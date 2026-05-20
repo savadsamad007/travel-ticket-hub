@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { ensureSupabaseSession } from "./auth";
+import { ensureSupabaseSession } from "./supabase-session";
 
 export type PartyType = "supplier" | "sub_agent" | "customer";
 
