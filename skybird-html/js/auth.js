@@ -7,8 +7,8 @@ const Auth = {
   permissions: {},      // { tickets:true, ... }
   _loadingMe: null,
 
-  isAdmin(){ return this.role === "admin"; },
-  can(perm){ if (!this.user) return false; if (this.role === "admin") return true; return !!this.permissions?.[perm]; },
+  isAdmin(){ return this.role === "admin" || this.role === "super_admin"; },
+  can(perm){ if (!this.user) return false; if (this.isAdmin()) return true; return !!this.permissions?.[perm]; },
 
   async login(email, password){
     const { error } = await sb.auth.signInWithPassword({ email, password });
