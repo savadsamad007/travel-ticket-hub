@@ -49,7 +49,9 @@ export async function computePartyBalance(party_type: PartyType, party_id: strin
 
     if (ticketIds.length) {
       const { data: svcs } = await supabase
-        .from("ticket_services").select("cost_price").in("ticket_id", ticketIds);
+        .from("ticket_services")
+        .select("cost_price")
+        .in("ticket_id", ticketIds);
       balance += (svcs ?? []).reduce((s: number, x: any) => s + Number(x.cost_price), 0);
 
       const { data: refs } = await supabase
@@ -72,12 +74,19 @@ export async function computePartyBalance(party_type: PartyType, party_id: strin
 
     if (ticketIds.length) {
       const { data: svcs } = await supabase
-        .from("ticket_services").select("sale_price").in("ticket_id", ticketIds);
+        .from("ticket_services")
+        .select("sale_price")
+        .in("ticket_id", ticketIds);
       balance += (svcs ?? []).reduce((s: number, x: any) => s + Number(x.sale_price), 0);
 
       const { data: refs } = await supabase
-        .from("refunds").select("customer_refund_amount").in("ticket_id", ticketIds);
-      balance -= (refs ?? []).reduce((s: number, x: any) => s + Number(x.customer_refund_amount), 0);
+        .from("refunds")
+        .select("customer_refund_amount")
+        .in("ticket_id", ticketIds);
+      balance -= (refs ?? []).reduce(
+        (s: number, x: any) => s + Number(x.customer_refund_amount),
+        0,
+      );
     }
   }
 

@@ -4,8 +4,15 @@ import { supabase } from "@/lib/supabase";
 
 export type AppRole = "super_admin" | "admin" | "salesman";
 export type PermKey =
-  | "tickets" | "refunds" | "payments" | "customers"
-  | "suppliers" | "sub_agents" | "cash_book" | "reports" | "statements";
+  | "tickets"
+  | "refunds"
+  | "payments"
+  | "customers"
+  | "suppliers"
+  | "sub_agents"
+  | "cash_book"
+  | "reports"
+  | "statements";
 
 export type Permissions = Partial<Record<PermKey, boolean>>;
 
@@ -26,7 +33,12 @@ export async function withSupabaseRetry<T>(work: () => Promise<T>): Promise<T> {
     return await work();
   } catch (error: any) {
     const message = String(error?.message || error || "").toLowerCase();
-    if (!message.includes("jwt") && !message.includes("token") && !message.includes("session") && !message.includes("unauthorized")) {
+    if (
+      !message.includes("jwt") &&
+      !message.includes("token") &&
+      !message.includes("session") &&
+      !message.includes("unauthorized")
+    ) {
       throw error;
     }
     await ensureSupabaseSession();
@@ -49,10 +61,17 @@ type AuthCtx = {
 };
 
 const Ctx = createContext<AuthCtx>({
-  user: null, session: null, loading: true,
-  role: null, permissions: {}, can: () => false,
-  agencyOwner: null, agencyName: "Skybird", agencyProfile: null,
-  refreshAgency: async () => {}, signOut: async () => {},
+  user: null,
+  session: null,
+  loading: true,
+  role: null,
+  permissions: {},
+  can: () => false,
+  agencyOwner: null,
+  agencyName: "Skybird",
+  agencyProfile: null,
+  refreshAgency: async () => {},
+  signOut: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -83,11 +102,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAgencyOwner(ua.agency_owner);
       setPermissions((ua.permissions as Permissions) ?? {});
       const { data: ap } = await supabase
-        .from("agency_profile").select("*").eq("agency_owner", ua.agency_owner).maybeSingle();
+        .from("agency_profile")
+        .select("*")
+        .eq("agency_owner", ua.agency_owner)
+        .maybeSingle();
       setAgencyProfile(ap ?? null);
       if (ap?.agency_name) setAgencyName(ap.agency_name);
     } else {
-      setRole("admin"); setAgencyOwner(uid); setPermissions({});
+      setRole("admin");
+      setAgencyOwner(uid);
+      setPermissions({});
     }
   }
 
@@ -110,23 +134,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void syncSession(s);
     });
 
-    supabase.auth.getSession()
+    supabase.auth
+      .getSession()
       .then(({ data }) => syncSession(data.session))
       .catch(() => syncSession(null));
 
-    return () => { active = false; sub.subscription.unsubscribe(); };
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  const can = (k: PermKey) => role === "admin" || role === "super_admin" ? true : !!permissions[k];
+  const can = (k: PermKey) =>
+    role === "admin" || role === "super_admin" ? true : !!permissions[k];
 
   return (
     <Ctx.Provider
       value={{
         user: session?.user ?? null,
-        session, loading, role, permissions, can,
-        agencyOwner, agencyName, agencyProfile,
-        refreshAgency: async () => { if (session?.user) await loadAgency(session.user.id); },
-        signOut: async () => { await supabase.auth.signOut(); },
+        session,
+        loading,
+        role,
+        permissions,
+        can,
+        agencyOwner,
+        agencyName,
+        agencyProfile,
+        refreshAgency: async () => {
+          if (session?.user) await loadAgency(session.user.id);
+        },
+        signOut: async () => {
+          await supabase.auth.signOut();
+        },
       }}
     >
       {children}
@@ -135,5 +174,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export const useAuth = () => useContext(Ctx);
-export const useIsAdmin = () => { const r = useContext(Ctx).role; return r === "admin" || r === "super_admin"; };
+export const useIsAdmin = () => {
+  const r = useContext(Ctx).role;
+  return r === "admin" || r === "super_admin";
+};
 export const useCan = (k: PermKey) => useContext(Ctx).can(k);
