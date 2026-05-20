@@ -95,10 +95,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     async function syncSession(s: Session | null) {
-      setSession(s);
-      if (s?.user) await loadAgency(s.user.id);
-      else resetAgency();
-      if (active) setLoading(false);
+      try {
+        setSession(s);
+        if (s?.user) await loadAgency(s.user.id);
+        else resetAgency();
+      } catch {
+        resetAgency();
+      } finally {
+        if (active) setLoading(false);
+      }
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
