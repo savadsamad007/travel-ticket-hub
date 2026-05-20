@@ -1,50 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-
-export type AppRole = "super_admin" | "admin" | "salesman";
-export type PermKey =
-  | "tickets"
-  | "refunds"
-  | "payments"
-  | "customers"
-  | "suppliers"
-  | "sub_agents"
-  | "cash_book"
-  | "reports"
-  | "statements";
-
-export type Permissions = Partial<Record<PermKey, boolean>>;
-
-export async function ensureSupabaseSession() {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (!userError && userData.user) return userData.user;
-
-  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-  if (refreshError || !refreshed.session?.user) {
-    throw new Error("Your login session is not ready. Please wait a moment and try again.");
-  }
-  return refreshed.session.user;
-}
-
-export async function withSupabaseRetry<T>(work: () => Promise<T>): Promise<T> {
-  try {
-    await ensureSupabaseSession();
-    return await work();
-  } catch (error: any) {
-    const message = String(error?.message || error || "").toLowerCase();
-    if (
-      !message.includes("jwt") &&
-      !message.includes("token") &&
-      !message.includes("session") &&
-      !message.includes("unauthorized")
-    ) {
-      throw error;
-    }
-    await ensureSupabaseSession();
-    return await work();
-  }
-}
+import type { AppRole, Permissions, PermKey } from "@/lib/auth-types";
 
 type AuthCtx = {
   user: User | null;
