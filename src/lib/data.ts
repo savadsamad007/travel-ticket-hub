@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { ensureSupabaseSession } from "./auth";
 
 export type PartyType = "supplier" | "sub_agent" | "customer";
 
@@ -13,9 +14,8 @@ export const PARTY_TABLES: Record<PartyType, "suppliers" | "sub_agents" | "custo
  * Staff (salesman) get the admin's UUID so all data is shared in the agency.
  */
 export async function getOwnerId(): Promise<string> {
-  const { data: u } = await supabase.auth.getUser();
-  const uid = u.user?.id;
-  if (!uid) throw new Error("Not signed in");
+  const user = await ensureSupabaseSession();
+  const uid = user.id;
   const { data } = await supabase
     .from("user_agency")
     .select("agency_owner")
