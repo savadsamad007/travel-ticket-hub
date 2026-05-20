@@ -9,6 +9,31 @@ export type PermKey =
 
 export type Permissions = Partial<Record<PermKey, boolean>>;
 
+export async function ensureSupabaseSession() {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (!userError && userData.user) return userData.user;
+
+  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshError || !refreshed.session?.user) {
+    throw new Error("Your login session is not ready. Please wait a moment and try again.");
+  }
+  return refreshed.session.user;
+}
+
+export async function withSupabaseRetry<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    await ensureSupabaseSession();
+    return await work();
+  } catch (error: any) {
+    const message = String(error?.message || error || "").toLowerCase();
+    if (!message.includes("jwt") && !message.includes("token") && !message.includes("session") && !message.includes("unauthorized")) {
+      throw error;
+    }
+    await ensureSupabaseSession();
+    return await work();
+  }
+}
+
 type AuthCtx = {
   user: User | null;
   session: Session | null;
@@ -39,6 +64,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [agencyName, setAgencyName] = useState("Skybird");
   const [agencyProfile, setAgencyProfile] = useState<any | null>(null);
 
+  function resetAgency() {
+    setRole(null);
+    setAgencyOwner(null);
+    setAgencyName("Skybird");
+    setAgencyProfile(null);
+    setPermissions({});
+  }
+
   async function loadAgency(uid: string) {
     const { data: ua } = await supabase
       .from("user_agency")
@@ -59,21 +92,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
+    let active = true;
+
+    async function syncSession(s: Session | null) {
       setSession(s);
       if (s?.user) await loadAgency(s.user.id);
-      else { setRole(null); setAgencyOwner(null); setAgencyName("Skybird"); setAgencyProfile(null); setPermissions({}); }
-      setLoading(false);
+      else resetAgency();
+      if (active) setLoading(false);
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      void syncSession(s);
     });
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) await loadAgency(data.session.user.id);
-  const can = (k: PermKey) => role === "admin" || role === "super_admin" ? true : !!permissions[k];
-    });
-    return () => sub.subscription.unsubscribe();
+
+    supabase.auth.getSession()
+      .then(({ data }) => syncSession(data.session))
+      .catch(() => syncSession(null));
+
+    return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  const can = (k: PermKey) => role === "admin" ? true : !!permissions[k];
+  const can = (k: PermKey) => role === "admin" || role === "super_admin" ? true : !!permissions[k];
 
   return (
     <Ctx.Provider
