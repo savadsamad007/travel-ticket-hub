@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { withSupabaseRetry } from "@/lib/supabase-session";
 import { PageHeader } from "@/components/skybird/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,15 +20,25 @@ function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    agency_name: "", legal_name: "", phone: "", email: "",
-    address: "", cr_number: "", vat_number: "", logo_url: "",
+    agency_name: "",
+    legal_name: "",
+    phone: "",
+    email: "",
+    address: "",
+    cr_number: "",
+    vat_number: "",
+    logo_url: "",
     opening_cash: "0",
   });
 
   useEffect(() => {
     if (!agencyOwner) return;
     (async () => {
-      const { data } = await supabase.from("agency_profile").select("*").eq("agency_owner", agencyOwner).maybeSingle();
+      const { data } = await supabase
+        .from("agency_profile")
+        .select("*")
+        .eq("agency_owner", agencyOwner)
+        .maybeSingle();
       if (data) {
         setForm({
           agency_name: data.agency_name ?? "",
@@ -65,40 +76,118 @@ function SettingsPage() {
         opening_cash: Number(form.opening_cash || 0),
         updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase.from("agency_profile").upsert(payload, { onConflict: "agency_owner" });
+      const { error } = await withSupabaseRetry(
+        async () =>
+          await supabase.from("agency_profile").upsert(payload, { onConflict: "agency_owner" }),
+      );
       if (error) throw error;
       toast.success("Saved");
       await refreshAgency();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setSaving(false); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save settings");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Loading…</div>;
 
   return (
     <div>
-      <PageHeader title="Agency Settings" description="Update your agency identity and starting cash balance." />
+      <PageHeader
+        title="Agency Settings"
+        description="Update your agency identity and starting cash balance."
+      />
       <Card className="shadow-soft max-w-2xl">
         <CardContent className="p-6">
           <form onSubmit={save} className="space-y-3">
-            <div className="space-y-2"><Label>Agency name *</Label><Input required maxLength={120} value={form.agency_name} onChange={(e) => setForm({ ...form, agency_name: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Legal / Trading name</Label><Input maxLength={150} value={form.legal_name} onChange={(e) => setForm({ ...form, legal_name: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Phone</Label><Input maxLength={40} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Email</Label><Input type="email" maxLength={255} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-2">
+              <Label>Agency name *</Label>
+              <Input
+                required
+                maxLength={120}
+                value={form.agency_name}
+                onChange={(e) => setForm({ ...form, agency_name: e.target.value })}
+              />
             </div>
-            <div className="space-y-2"><Label>Address</Label><Textarea maxLength={500} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>CR number</Label><Input maxLength={50} value={form.cr_number} onChange={(e) => setForm({ ...form, cr_number: e.target.value })} /></div>
-              <div className="space-y-2"><Label>VAT number</Label><Input maxLength={50} value={form.vat_number} onChange={(e) => setForm({ ...form, vat_number: e.target.value })} /></div>
+            <div className="space-y-2">
+              <Label>Legal / Trading name</Label>
+              <Input
+                maxLength={150}
+                value={form.legal_name}
+                onChange={(e) => setForm({ ...form, legal_name: e.target.value })}
+              />
             </div>
-            <div className="space-y-2"><Label>Logo URL</Label><Input type="url" maxLength={500} value={form.logo_url} onChange={(e) => setForm({ ...form, logo_url: e.target.value })} placeholder="https://…" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  maxLength={40}
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  maxLength={255}
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Textarea
+                maxLength={500}
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>CR number</Label>
+                <Input
+                  maxLength={50}
+                  value={form.cr_number}
+                  onChange={(e) => setForm({ ...form, cr_number: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>VAT number</Label>
+                <Input
+                  maxLength={50}
+                  value={form.vat_number}
+                  onChange={(e) => setForm({ ...form, vat_number: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Logo URL</Label>
+              <Input
+                type="url"
+                maxLength={500}
+                value={form.logo_url}
+                onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                placeholder="https://…"
+              />
+            </div>
             <div className="space-y-2">
               <Label>Opening cash in hand (SAR)</Label>
-              <Input type="number" step="0.01" value={form.opening_cash} onChange={(e) => setForm({ ...form, opening_cash: e.target.value })} />
-              <p className="text-xs text-muted-foreground">Starting cash balance — used by the Cash Book page.</p>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.opening_cash}
+                onChange={(e) => setForm({ ...form, opening_cash: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Starting cash balance — used by the Cash Book page.
+              </p>
             </div>
-            <Button type="submit" disabled={saving} className="bg-gradient-brand text-white">{saving ? "Saving…" : "Save changes"}</Button>
+            <Button type="submit" disabled={saving} className="bg-gradient-brand text-white">
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
           </form>
         </CardContent>
       </Card>

@@ -1,22 +1,28 @@
 // Skybird HTML — Supabase Auth
 const Auth = {
-  user: null,           // { id, email }
-  agency: null,         // agency profile fields (with vat_no mapped)
-  agencyOwner: null,    // uuid of owning admin
-  role: null,           // 'admin' | 'salesman'
-  permissions: {},      // { tickets:true, ... }
+  user: null, // { id, email }
+  agency: null, // agency profile fields (with vat_no mapped)
+  agencyOwner: null, // uuid of owning admin
+  role: null, // 'admin' | 'salesman'
+  permissions: {}, // { tickets:true, ... }
   _loadingMe: null,
 
-  isAdmin(){ return this.role === "admin"; },
-  can(perm){ if (!this.user) return false; if (this.role === "admin") return true; return !!this.permissions?.[perm]; },
+  isAdmin() {
+    return this.role === "admin" || this.role === "super_admin";
+  },
+  can(perm) {
+    if (!this.user) return false;
+    if (this.isAdmin()) return true;
+    return !!this.permissions?.[perm];
+  },
 
-  async login(email, password){
+  async login(email, password) {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
     await this.loadMe();
   },
 
-  async refreshSessionIfNeeded(force){
+  async refreshSessionIfNeeded(force) {
     const now = Math.floor(Date.now() / 1000);
     const { data, error } = force ? await sb.auth.refreshSession() : await sb.auth.getSession();
     if (error && force) throw new Error(error.message);
@@ -29,7 +35,7 @@ const Auth = {
     return session;
   },
 
-  async waitForSession(ms = 2500){
+  async waitForSession(ms = 2500) {
     const start = Date.now();
     while (Date.now() - start < ms) {
       const session = await this.refreshSessionIfNeeded(false).catch(() => null);
@@ -39,9 +45,10 @@ const Auth = {
     return null;
   },
 
-  async register(name, email, password){
+  async register(name, email, password) {
     const { data, error } = await sb.auth.signUp({
-      email, password,
+      email,
+      password,
       options: { data: { full_name: name } },
     });
     if (error) throw new Error(error.message);
@@ -53,16 +60,21 @@ const Auth = {
     await this.loadMe();
   },
 
-  async loadMe(){
+  async loadMe() {
     if (this._loadingMe) return this._loadingMe;
-    this._loadingMe = this._loadMeNow().finally(() => { this._loadingMe = null; });
+    this._loadingMe = this._loadMeNow().finally(() => {
+      this._loadingMe = null;
+    });
     return this._loadingMe;
   },
 
-  async _loadMeNow(){
+  async _loadMeNow() {
     const session = await this.refreshSessionIfNeeded(false).catch(() => null);
     const u = session?.user;
-    if (!u) { this.user = null; return false; }
+    if (!u) {
+      this.user = null;
+      return false;
+    }
     this.user = { id: u.id, email: u.email };
     // Load membership
     let { data: ua, error: uaError } = await sb
@@ -96,15 +108,22 @@ const Auth = {
     return true;
   },
 
-  async loadAgency(){
-    try { this.agency = await gas("agency.get"); }
-    catch (_) { this.agency = {}; }
+  async loadAgency() {
+    try {
+      this.agency = await gas("agency.get");
+    } catch (_) {
+      this.agency = {};
+    }
     return this.agency;
   },
 
-  async logout(){
+  async logout() {
     await sb.auth.signOut();
-    this.user = null; this.agency = null; this.agencyOwner = null; this.role = null; this.permissions = {};
+    this.user = null;
+    this.agency = null;
+    this.agencyOwner = null;
+    this.role = null;
+    this.permissions = {};
     Store.cache = {};
     location.hash = "";
     renderShell();

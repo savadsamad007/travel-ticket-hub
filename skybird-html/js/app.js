@@ -1,4 +1,4 @@
-function renderShell(){
+function renderShell() {
   if (Auth.user) {
     $("#login-view").classList.add("hidden");
     $("#app-view").classList.remove("hidden");
@@ -14,36 +14,63 @@ function renderShell(){
 }
 
 // tab toggling
-$$(".tab").forEach(t => t.onclick = () => {
-  $$(".tab").forEach(x => x.classList.remove("active"));
-  t.classList.add("active");
-  $("#form-login").classList.toggle("hidden", t.dataset.tab !== "login");
-  $("#form-register").classList.toggle("hidden", t.dataset.tab !== "register");
-});
+$$(".tab").forEach(
+  (t) =>
+    (t.onclick = () => {
+      $$(".tab").forEach((x) => x.classList.remove("active"));
+      t.classList.add("active");
+      $("#form-login").classList.toggle("hidden", t.dataset.tab !== "login");
+      $("#form-register").classList.toggle("hidden", t.dataset.tab !== "register");
+    }),
+);
 
 $("#form-login").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   $("#login-error").textContent = "";
-  try { await Auth.login(fd.get("email"), fd.get("password")); renderShell(); toast("Welcome back","success"); }
-  catch(err){ $("#login-error").textContent = err.message; }
+  try {
+    await Auth.login(fd.get("email"), fd.get("password"));
+    renderShell();
+    toast("Welcome back", "success");
+  } catch (err) {
+    $("#login-error").textContent = err.message;
+  }
 });
 $("#form-register").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   $("#register-error").textContent = "";
-  try { await Auth.register(fd.get("name"), fd.get("email"), fd.get("password")); renderShell(); toast("Account created","success"); }
-  catch(err){ $("#register-error").textContent = err.message; }
+  try {
+    await Auth.register(fd.get("name"), fd.get("email"), fd.get("password"));
+    renderShell();
+    toast("Account created", "success");
+  } catch (err) {
+    $("#register-error").textContent = err.message;
+  }
 });
 $("#btn-logout").onclick = () => Auth.logout();
 
 (async () => {
-  sb.auth.onAuthStateChange(async (event, session) => {
+  sb.auth.onAuthStateChange((event, session) => {
     if (event === "TOKEN_REFRESHED" && session?.user) return;
-    if (event === "SIGNED_OUT") { Auth.user = null; Store.cache = {}; renderShell(); return; }
-    if (session?.user) { Store.cache = {}; await Auth.loadMe(); renderShell(); }
+    if (event === "SIGNED_OUT") {
+      Auth.user = null;
+      Store.cache = {};
+      renderShell();
+      return;
+    }
+    if (session?.user) {
+      void (async () => {
+        Store.cache = {};
+        await Auth.loadMe();
+        renderShell();
+      })();
+    }
   });
   const ok = await Auth.loadMe();
-  if (!ok) { renderShell(); return; }
+  if (!ok) {
+    renderShell();
+    return;
+  }
   renderShell();
 })();
