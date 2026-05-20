@@ -38,10 +38,12 @@ $("#form-register").addEventListener("submit", async (e) => {
 $("#btn-logout").onclick = () => Auth.logout();
 
 (async () => {
-  sb.auth.onAuthStateChange(async (event, session) => {
+  sb.auth.onAuthStateChange((event, session) => {
     if (event === "TOKEN_REFRESHED" && session?.user) return;
     if (event === "SIGNED_OUT") { Auth.user = null; Store.cache = {}; renderShell(); return; }
-    if (session?.user) { Store.cache = {}; await Auth.loadMe(); renderShell(); }
+    if (session?.user) {
+      void (async () => { Store.cache = {}; await Auth.loadMe(); renderShell(); })();
+    }
   });
   const ok = await Auth.loadMe();
   if (!ok) { renderShell(); return; }
