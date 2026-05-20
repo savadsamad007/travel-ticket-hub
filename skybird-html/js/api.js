@@ -186,14 +186,16 @@ const ACTIONS = {
     }));
   },
   "staff.setPermissions": async (d) => {
-    const { error } = await sb
-      .from("user_agency")
-      .update({ permissions: d.permissions || {} })
-      .eq("user_id", d.id)
-      .eq("agency_owner", ownerId());
-    if (error) throw new Error(error.message);
-    mirrorToSheet("user_agency", { user_id: d.id, permissions: d.permissions }, "perms");
-    return { id: d.id };
+    return withSessionRetry(async () => {
+      const { error } = await sb
+        .from("user_agency")
+        .update({ permissions: d.permissions || {} })
+        .eq("user_id", d.id)
+        .eq("agency_owner", ownerId());
+      if (error) throw new Error(error.message);
+      mirrorToSheet("user_agency", { user_id: d.id, permissions: d.permissions }, "perms");
+      return { id: d.id };
+    });
   },
   "staff.setRole": async (d) => {
     const { error } = await sb
@@ -225,17 +227,14 @@ const ACTIONS = {
     if (e1) throw new Error(e1.message);
     const newId = su.user?.id;
     if (!newId) throw new Error("Could not create user (may already exist)");
-    const { error: e2 } = await sb.from("user_agency").upsert(
-      {
-        user_id: newId,
-        agency_owner: ownerId(),
-        role: d.role || "salesman",
-        full_name: d.name || d.email,
-        permissions: d.role === "admin" ? {} : (d.permissions || { tickets: true, customers: true, payments: true }),
-      },
-      { onConflict: "user_id" },
-    );
-    if (e2) throw new Error(e2.message);
+    const payload = {
+      p_user_id: newId,
+      p_role: d.role || "salesman",
+      p_full_name: d.name || d.email,
+      p_permissions: d.role === "admin" ? {} : (d.permissions || { tickets: true, customers: true, payments: true }),
+    };
+    const { error: rpcError } = await sb.rpc("admin_attach_staff", payload);
+    if (rpcError) throw new Error(rpcError.message.includes("Could not find") ? "Please run skybird-cloud-fix.sql first, then create staff again." : rpcError.message);
     return { id: newId };
   },
 
