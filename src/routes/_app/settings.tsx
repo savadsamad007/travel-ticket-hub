@@ -66,8 +66,8 @@ function SettingsPage() {
         opening_cash: Number(form.opening_cash || 0),
         updated_at: new Date().toISOString(),
       };
-      const { error } = await withSupabaseRetry(() =>
-        supabase.from("agency_profile").upsert(payload, { onConflict: "agency_owner" }),
+      const { error } = await withSupabaseRetry(async () =>
+        await supabase.from("agency_profile").upsert(payload, { onConflict: "agency_owner" }),
       );
       if (error) throw error;
       toast.success("Saved");
