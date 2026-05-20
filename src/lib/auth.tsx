@@ -5,6 +5,8 @@ import type { AppRole, Permissions, PermKey } from "@/lib/auth-types";
 
 export type { AppRole, Permissions, PermKey } from "@/lib/auth-types";
 
+type AgencyProfile = { agency_name?: string; [key: string]: unknown };
+
 type AuthCtx = {
   user: User | null;
   session: Session | null;
@@ -14,7 +16,7 @@ type AuthCtx = {
   can: (k: PermKey) => boolean;
   agencyOwner: string | null;
   agencyName: string;
-  agencyProfile: Record<string, unknown> | null;
+  agencyProfile: AgencyProfile | null;
   refreshAgency: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -40,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<Permissions>({});
   const [agencyOwner, setAgencyOwner] = useState<string | null>(null);
   const [agencyName, setAgencyName] = useState("Skybird");
-  const [agencyProfile, setAgencyProfile] = useState<Record<string, unknown> | null>(null);
+  const [agencyProfile, setAgencyProfile] = useState<AgencyProfile | null>(null);
 
   function resetAgency() {
     setRole(null);
