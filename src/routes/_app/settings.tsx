@@ -83,8 +83,8 @@ function SettingsPage() {
       if (error) throw error;
       toast.success("Saved");
       await refreshAgency();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save settings");
     } finally {
       setSaving(false);
     }
