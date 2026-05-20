@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Navigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plane } from "lucide-react";
 import { toast } from "sonner";
@@ -68,7 +68,7 @@ function LoginPage() {
           </div>
           <h2 className="text-3xl font-bold">Welcome back</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to continue to Skybird. New staff accounts are created by your admin from the Staff page.
+            Sign in to continue to Skybird. No account? <Link to="/signup" className="text-primary font-medium hover:underline">Create one</Link>.
           </p>
           <form onSubmit={submit} className="mt-8 space-y-4">
             <div className="space-y-2">
