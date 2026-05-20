@@ -1,0 +1,16 @@
+{
+  "name": "skybird-mssql-bridge",
+  "version": "1.0.0",
+  "description": "Two-way sync between local MSSQL and Supabase (Skybird)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "once": "node src/index.js --once"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5",
+    "mssql": "^11.0.1"
+  }
+}
