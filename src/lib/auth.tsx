@@ -91,5 +91,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export const useAuth = () => useContext(Ctx);
-export const useIsAdmin = () => useContext(Ctx).role === "admin";
+export const useIsAdmin = () => { const r = useContext(Ctx).role; return r === "admin" || r === "super_admin"; };
 export const useCan = (k: PermKey) => useContext(Ctx).can(k);
