@@ -3,6 +3,8 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { AppRole, Permissions, PermKey } from "@/lib/auth-types";
 
+export type { AppRole, Permissions, PermKey } from "@/lib/auth-types";
+
 type AuthCtx = {
   user: User | null;
   session: Session | null;
