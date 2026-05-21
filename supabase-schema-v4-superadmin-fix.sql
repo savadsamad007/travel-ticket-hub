@@ -104,6 +104,11 @@ drop trigger if exists on_auth_user_created_agency on auth.users;
 create trigger on_auth_user_created_agency
   after insert on auth.users for each row execute function public.handle_new_user_agency();
 
+drop policy if exists "ua_admin_select" on public.user_agency;
+create policy "ua_admin_select" on public.user_agency for select
+  to authenticated
+  using (agency_owner = public.my_agency_owner() and public.is_admin_like());
+
 drop policy if exists "ua_admin_insert" on public.user_agency;
 create policy "ua_admin_insert" on public.user_agency for insert
   with check (agency_owner = public.my_agency_owner() and public.is_admin_like());
