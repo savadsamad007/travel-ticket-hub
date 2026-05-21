@@ -98,39 +98,6 @@ function StaffPage() {
       const newUserId = signUpData.user?.id;
       if (!newUserId) throw new Error("Could not create user (may already exist)");
 
-      const { error: upErr } = await supabase
-        .from("user_agency")
-        .upsert(
-          {
-            user_id: newUserId,
-            agency_owner: agencyOwner,
-            role: form.role,
-            full_name: form.full_name || form.email,
-            permissions: initialPerms,
-          },
-          { onConflict: "user_id" },
-        );
-      if (upErr) {
-        if (signUpData.session) {
-          await tmp.auth.setSession({
-            access_token: signUpData.session.access_token,
-            refresh_token: signUpData.session.refresh_token,
-          });
-          const { error: claimErr } = await tmp
-            .from("user_agency")
-            .update({
-              agency_owner: agencyOwner,
-              role: form.role,
-              full_name: form.full_name || form.email,
-              permissions: initialPerms,
-            })
-            .eq("user_id", newUserId);
-          if (claimErr) throw upErr;
-        } else {
-          throw upErr;
-        }
-      }
-
       toast.success(`${form.role === "admin" ? "Admin" : "Salesman"} added`);
       setOpen(false);
       setForm({ full_name: "", email: "", password: "", role: "salesman" });
