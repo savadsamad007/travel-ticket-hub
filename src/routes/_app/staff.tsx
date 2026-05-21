@@ -36,6 +36,10 @@ const PERM_KEYS: { key: PermKey; label: string }[] = [
 
 const DEFAULT_SALESMAN_PERMS = { tickets: true, customers: true, payments: true } as Record<string, boolean>;
 
+function makeInviteToken() {
+  return crypto.randomUUID();
+}
+
 function StaffPage() {
   const { user, role, agencyOwner } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
@@ -69,15 +73,24 @@ function StaffPage() {
         auth: { persistSession: false, autoRefreshToken: false },
       });
       const initialPerms = form.role === "admin" ? {} : DEFAULT_SALESMAN_PERMS;
+      const inviteToken = makeInviteToken();
+      const { error: inviteErr } = await supabase.from("staff_invites").insert({
+        token: inviteToken,
+        agency_owner: agencyOwner,
+        email: form.email.trim(),
+        role: form.role,
+        full_name: form.full_name || form.email,
+        permissions: initialPerms,
+        created_by: user?.id,
+      });
+      if (inviteErr) throw inviteErr;
       const { data: signUpData, error: signUpErr } = await tmp.auth.signUp({
         email: form.email.trim(),
         password: form.password,
         options: {
           data: {
             full_name: form.full_name,
-            agency_owner: agencyOwner,
-            staff_role: form.role,
-            permissions: initialPerms,
+            staff_invite_token: inviteToken,
           },
         },
       });
