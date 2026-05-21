@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 export function RequirePerm({ perm, children }: { perm: PermKey; children: ReactNode }) {
   const { loading, can, role } = useAuth();
   if (loading) return null;
-  if (role === "admin") return <>{children}</>;
+  if (role === "admin" || role === "super_admin") return <>{children}</>;
   if (!can(perm)) return <Navigate to="/dashboard" />;
   return <>{children}</>;
 }
