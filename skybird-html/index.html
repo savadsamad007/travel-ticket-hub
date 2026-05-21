@@ -37,24 +37,12 @@
         <div style="font-size:20px;font-weight:700">Skybird</div>
       </div>
       <h2>Welcome back</h2>
-      <p class="sub">Sign in to continue to Skybird. New staff accounts are created by your admin from the Staff page.</p>
-      <div class="tabs">
-        <button class="tab active" data-tab="login">Sign in</button>
-        <button class="tab" data-tab="register">Create account</button>
-      </div>
+      <p class="sub">Sign in to continue to Skybird. Staff accounts are created by your admin from the Staff page.</p>
       <form id="form-login" class="form">
         <label>Email</label><input type="email" name="email" required autocomplete="email" />
         <label>Password</label><input type="password" name="password" required autocomplete="current-password" />
         <button class="btn-primary" type="submit">Sign in</button>
         <p id="login-error" class="error"></p>
-      </form>
-      <form id="form-register" class="form hidden">
-        <label>Full name</label><input name="name" required />
-        <label>Email</label><input type="email" name="email" required />
-        <label>Password</label><input type="password" name="password" required minlength="6" />
-        <p class="muted small" style="margin-top:8px">First account becomes admin. Others default to salesman with limited access — admin can grant more in Staff page.</p>
-        <button class="btn-primary" type="submit">Create account</button>
-        <p id="register-error" class="error"></p>
       </form>
     </div>
   </div>
