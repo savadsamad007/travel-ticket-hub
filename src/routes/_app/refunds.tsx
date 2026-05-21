@@ -35,10 +35,10 @@ function RefundsPage() {
 
   async function load() {
     const [rf, tk, cu, ag] = await Promise.all([
-      supabase.from("refunds").select("*").order("created_at", { ascending: false }),
-      supabase.from("tickets").select("id, ticket_no, pnr, passenger_name, route, sale_price, cost_price, status, buyer_type, buyer_id"),
-      supabase.from("customers").select("id, name, phone"),
-      supabase.from("sub_agents").select("id, name, phone"),
+      supabase.from("refunds").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
+      supabase.from("tickets").select("id, ticket_no, pnr, passenger_name, route, sale_price, cost_price, status, buyer_type, buyer_id").eq("is_deleted", false),
+      supabase.from("customers").select("id, name, phone").eq("is_deleted", false),
+      supabase.from("sub_agents").select("id, name, phone").eq("is_deleted", false),
     ]);
     setRows(rf.data ?? []); setTickets(tk.data ?? []);
     setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
@@ -81,7 +81,7 @@ function RefundsPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this refund?")) return;
-    const { error } = await supabase.from("refunds").delete().eq("id", id);
+    const { error } = await supabase.rpc("soft_delete", { _table: "refunds", _id: id });
     if (error) return toast.error(error.message);
     toast.success("Deleted"); load();
   }
