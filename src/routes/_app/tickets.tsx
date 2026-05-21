@@ -1,7 +1,7 @@
 import { RequirePerm } from "@/components/skybird/require-perm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Receipt, X, FileText, MessageCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, X, FileText, MessageCircle, Search } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
 import { getOwnerId } from "@/lib/data";
 import { useAuth, useIsAdmin } from "@/lib/auth";
@@ -33,6 +33,7 @@ type Form = {
   is_service_only: boolean;
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string;
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
+  walking_customer: boolean; walking_name: string; walking_phone: string;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
 };
@@ -40,6 +41,7 @@ const emptyForm: Form = {
   is_service_only: false,
   ticket_no: "", pnr: "", passenger_name: "", route: "", travel_date: "", airline: "",
   supplier_id: "", buyer_type: "customer", buyer_id: "",
+  walking_customer: false, walking_name: "", walking_phone: "",
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
 };
 
@@ -64,6 +66,7 @@ function TicketsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
+  const [search, setSearch] = useState("");
 
   // standalone service modal (on existing tickets)
   const [svcOpen, setSvcOpen] = useState(false);
@@ -73,7 +76,7 @@ function TicketsPage() {
   async function load() {
     const [tk, sp, cu, ag] = await Promise.all([
       supabase.from("tickets").select("*").order("created_at", { ascending: false }),
-      supabase.from("suppliers").select("id, name"),
+      supabase.from("suppliers").select("id, name, kind").order("kind", { ascending: false }),
       supabase.from("customers").select("id, name"),
       supabase.from("sub_agents").select("id, name"),
     ]);
