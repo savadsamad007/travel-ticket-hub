@@ -33,7 +33,6 @@ function PaymentsPage() {
   const [form, setForm] = useState({
     party_type: "customer" as PartyType, party_id: "", direction: "in" as "in"|"out",
     amount: "", method: "cash" as "cash"|"bank"|"credit", reference: "", notes: "",
-    paid_at: new Date().toISOString().slice(0, 10),
   });
 
   async function load() {
@@ -64,12 +63,11 @@ function PaymentsPage() {
         party_type: form.party_type, party_id: form.party_id,
         direction: form.direction, amount: Number(form.amount),
         method: form.method, reference: form.reference || null, notes: form.notes || null,
-        paid_at: form.paid_at || null,
       });
       if (error) throw error;
       toast.success("Payment recorded");
       setOpen(false);
-      setForm({ party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "", paid_at: new Date().toISOString().slice(0, 10) });
+      setForm({ party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "" });
       load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -89,7 +87,6 @@ function PaymentsPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Record payment</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
-              <div className="space-y-2"><Label>Payment date</Label><Input type="date" value={form.paid_at} onChange={(e) => setForm({ ...form, paid_at: e.target.value })} required /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Direction</Label>
@@ -159,7 +156,7 @@ function PaymentsPage() {
             {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments yet.</TableCell></TableRow>}
             {rows.map((r) => (
               <TableRow key={r.id} className="hover:bg-muted/40">
-                <TableCell className="text-sm">{new Date(r.paid_at ?? r.created_at).toLocaleDateString()}</TableCell>
+                <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>
                   <div>{partyName(r.party_type, r.party_id)}</div>
                   <div className="text-xs text-muted-foreground capitalize">{r.party_type.replace("_", "-")}</div>

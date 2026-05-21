@@ -1,7 +1,8 @@
 {
-  "buildCommand": "bun run build",
-  "installCommand": "bun install",
+  "buildCommand": null,
+  "installCommand": null,
   "framework": null,
+  "outputDirectory": "skybird-html",
   "cleanUrls": true,
   "trailingSlash": false
 }
