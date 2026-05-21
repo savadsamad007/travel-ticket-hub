@@ -44,7 +44,7 @@ function StaffPage() {
   const [form, setForm] = useState({ full_name: "", email: "", password: "", role: "salesman" as "admin" | "salesman" });
 
   // permissions editor
-  const [permEditor, setPermEditor] = useState<{ uid: string; name: string; perms: Record<string, boolean> } | null>(null);
+  const [permEditor, setPermEditor] = useState<{ uid: string; name: string; role: string; perms: Record<string, boolean> } | null>(null);
 
   async function load() {
     if (!agencyOwner) return;
