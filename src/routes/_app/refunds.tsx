@@ -86,9 +86,8 @@ function RefundsPage() {
     toast.success("Deleted"); load();
   }
 
-  function ticketLabel(id: string) {
-    const t = tickets.find((x) => x.id === id);
-    return t ? `${t.passenger_name} — ${t.route ?? ""}` : "—";
+  function ticketInfo(id: string) {
+    return tickets.find((x) => x.id === id);
   }
 
   return (
