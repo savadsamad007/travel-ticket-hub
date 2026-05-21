@@ -31,6 +31,7 @@ function PaymentsPage() {
   const [agents, setAgents] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
+    date: new Date().toISOString().slice(0, 10),
     party_type: "customer" as PartyType, party_id: "", direction: "in" as "in"|"out",
     amount: "", method: "cash" as "cash"|"bank"|"credit", reference: "", notes: "",
   });
@@ -63,11 +64,12 @@ function PaymentsPage() {
         party_type: form.party_type, party_id: form.party_id,
         direction: form.direction, amount: Number(form.amount),
         method: form.method, reference: form.reference || null, notes: form.notes || null,
+        created_at: form.date ? new Date(form.date).toISOString() : new Date().toISOString(),
       });
       if (error) throw error;
       toast.success("Payment recorded");
       setOpen(false);
-      setForm({ party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "" });
+      setForm({ date: new Date().toISOString().slice(0,10), party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "" });
       load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -87,6 +89,10 @@ function PaymentsPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Record payment</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Direction</Label>
