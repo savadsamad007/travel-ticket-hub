@@ -183,12 +183,10 @@ function StaffPage() {
                   <TableCell className="text-xs text-muted-foreground max-w-xs truncate">{permList}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right space-x-1">
-                    {r.role === "salesman" && (
-                      <Button size="icon" variant="ghost" title="Edit permissions"
-                        onClick={() => setPermEditor({ uid: r.user_id, name: r.full_name || r.user_id, perms: { ...(perms || {}) } })}>
-                        <Settings2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button size="icon" variant="ghost" title="Edit staff"
+                      onClick={() => setPermEditor({ uid: r.user_id, name: r.full_name || "", role: r.role, perms: { ...(perms || {}) } })}>
+                      <Settings2 className="h-4 w-4" />
+                    </Button>
                     {r.user_id !== user?.id && (
                       <Button size="icon" variant="ghost" onClick={() => removeStaff(r.user_id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
