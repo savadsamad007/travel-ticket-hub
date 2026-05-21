@@ -166,6 +166,7 @@ function TicketsPage() {
       ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "", passenger_name: t.passenger_name,
       route: t.route ?? "", travel_date: t.travel_date ?? "", airline: t.airline ?? "",
       supplier_id: t.supplier_id ?? "", buyer_type: t.buyer_type, buyer_id: t.buyer_id,
+      walking_customer: false, walking_name: "", walking_phone: "",
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
       status: t.status, notes: t.notes ?? "", services: [],
     });
