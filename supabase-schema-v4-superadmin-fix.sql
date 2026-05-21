@@ -70,13 +70,14 @@ begin
          and agency_owner = invite_row.agency_owner
          and role::text in ('admin','super_admin')
      ) then
-    insert into public.user_agency (user_id, agency_owner, role, full_name, permissions)
+    insert into public.user_agency (user_id, agency_owner, role, full_name, permissions, created_by)
     values (
       new.id,
       invite_row.agency_owner,
       invite_row.role,
       coalesce(invite_row.full_name, new.raw_user_meta_data->>'full_name', new.email),
-      invite_row.permissions
+      invite_row.permissions,
+      invite_row.created_by
     )
     on conflict (user_id) do nothing;
     update public.staff_invites set used_by = new.id, used_at = now() where token = invite_row.token;
