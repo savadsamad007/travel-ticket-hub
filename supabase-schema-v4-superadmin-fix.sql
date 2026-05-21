@@ -19,7 +19,8 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 alter table public.user_agency
-  add column if not exists permissions jsonb not null default '{}'::jsonb;
+  add column if not exists permissions jsonb not null default '{}'::jsonb,
+  add column if not exists created_by uuid references auth.users(id) on delete set null;
 
 create table if not exists public.staff_invites (
   token uuid primary key,
