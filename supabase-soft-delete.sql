@@ -36,6 +36,24 @@ alter table public.user_agency
 create index if not exists user_agency_isdel_idx on public.user_agency (is_deleted);
 create index if not exists user_agency_updated_idx on public.user_agency (updated_at);
 
+-- Allow tickets to carry status = deleted after soft delete.
+do $$
+declare c record;
+begin
+  for c in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.tickets'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%status%'
+  loop
+    execute format('alter table public.tickets drop constraint if exists %I', c.conname);
+  end loop;
+end $$;
+alter table public.tickets
+  add constraint tickets_status_chk
+  check (status in ('booked','paid','refunded','cancelled','deleted'));
+
 -- ---------- 2. updated_at trigger for MSSQL sync ----------
 create or replace function public.set_updated_at()
 returns trigger
