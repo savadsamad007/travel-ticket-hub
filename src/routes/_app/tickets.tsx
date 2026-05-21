@@ -75,16 +75,16 @@ function TicketsPage() {
 
   async function load() {
     const [tk, sp, cu, ag] = await Promise.all([
-      supabase.from("tickets").select("*").order("created_at", { ascending: false }),
-      supabase.from("suppliers").select("*").order("name"),
-      supabase.from("customers").select("id, name"),
-      supabase.from("sub_agents").select("id, name"),
+      supabase.from("tickets").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
+      supabase.from("suppliers").select("*").eq("is_deleted", false).order("name"),
+      supabase.from("customers").select("id, name").eq("is_deleted", false),
+      supabase.from("sub_agents").select("id, name").eq("is_deleted", false),
     ]);
     if (sp.error) toast.error("Suppliers: " + sp.error.message);
     setTickets(tk.data ?? []);
     setSuppliers(sp.data ?? []); setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
     if ((tk.data ?? []).length) {
-      const { data: svs } = await supabase.from("ticket_services").select("*").in("ticket_id", tk.data!.map((t: any) => t.id));
+      const { data: svs } = await supabase.from("ticket_services").select("*").eq("is_deleted", false).in("ticket_id", tk.data!.map((t: any) => t.id));
       const map: Record<string, any[]> = {};
       for (const s of svs ?? []) (map[s.ticket_id] ||= []).push(s);
       setServices(map);
@@ -221,7 +221,7 @@ function TicketsPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this ticket and its services?")) return;
-    const { error } = await supabase.from("tickets").delete().eq("id", id);
+    const { error } = await supabase.rpc("soft_delete", { _table: "tickets", _id: id });
     if (error) return toast.error(error.message);
     toast.success("Deleted"); load();
   }
