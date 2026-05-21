@@ -28,18 +28,6 @@ $("#form-login").addEventListener("submit", async (e) => {
     $("#login-error").textContent = err.message;
   }
 });
-$("#form-register").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  $("#register-error").textContent = "";
-  try {
-    await Auth.register(fd.get("name"), fd.get("email"), fd.get("password"));
-    renderShell();
-    toast("Account created", "success");
-  } catch (err) {
-    $("#register-error").textContent = err.message;
-  }
-});
 $("#btn-logout").onclick = () => Auth.logout();
 
 (async () => {
