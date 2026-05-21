@@ -36,11 +36,11 @@ function ReportsPage() {
   useEffect(() => {
     (async () => {
       const [tk, sv, sp, cu, ag] = await Promise.all([
-        supabase.from("tickets").select("*").order("created_at", { ascending: false }),
-        supabase.from("ticket_services").select("*"),
-        supabase.from("suppliers").select("id,name"),
-        supabase.from("customers").select("id,name"),
-        supabase.from("sub_agents").select("id,name"),
+        supabase.from("tickets").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
+        supabase.from("ticket_services").select("*").eq("is_deleted", false),
+        supabase.from("suppliers").select("id,name").eq("is_deleted", false),
+        supabase.from("customers").select("id,name").eq("is_deleted", false),
+        supabase.from("sub_agents").select("id,name").eq("is_deleted", false),
       ]);
       setTickets(tk.data ?? []); setServices(sv.data ?? []);
       setSuppliers(sp.data ?? []); setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
