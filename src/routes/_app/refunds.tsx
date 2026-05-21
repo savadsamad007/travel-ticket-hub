@@ -46,9 +46,10 @@ function RefundsPage() {
   useEffect(() => { load(); }, []);
 
   const filteredTickets = useMemo(() => {
+    const available = tickets.filter((t) => t.status !== "refunded" && t.status !== "cancelled" && t.status !== "deleted");
     const q = search.trim().toLowerCase();
-    if (!q) return tickets;
-    return tickets.filter((t) => {
+    if (!q) return available;
+    return available.filter((t) => {
       const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
       const hay = [t.ticket_no, t.passenger_name, t.pnr, t.route, buyer?.name, buyer?.phone]
         .filter(Boolean).join(" ").toLowerCase();
