@@ -33,6 +33,7 @@ function PaymentsPage() {
   const [form, setForm] = useState({
     party_type: "customer" as PartyType, party_id: "", direction: "in" as "in"|"out",
     amount: "", method: "cash" as "cash"|"bank"|"credit", reference: "", notes: "",
+    paid_at: new Date().toISOString().slice(0, 10),
   });
 
   async function load() {
