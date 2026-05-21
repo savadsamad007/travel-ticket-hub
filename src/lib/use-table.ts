@@ -8,6 +8,7 @@ export function useTable<T = any>(table: string, opts?: { orderBy?: string; asce
   async function refetch() {
     setLoading(true);
     let q = supabase.from(table).select("*");
+    q = q.eq("is_deleted", false);
     if (opts?.orderBy) q = q.order(opts.orderBy, { ascending: opts.ascending ?? false });
     const { data, error } = await q;
     if (error) toast.error(error.message);
