@@ -282,39 +282,61 @@ function TicketsPage() {
                   <AirlineAutocomplete value={form.airline} onChange={(v) => setForm({ ...form, airline: v })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Supplier {form.is_service_only ? "" : "*"}</Label>
-                  <Select disabled={form.is_service_only} value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
-                    <SelectTrigger><SelectValue placeholder={form.is_service_only ? "— not needed —" : "Choose…"} /></SelectTrigger>
-                    <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                  <Label>Supplier {form.is_service_only ? "(optional)" : "*"}</Label>
+                  <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
+                    <SelectTrigger><SelectValue placeholder={form.is_service_only ? "— optional —" : "Choose…"} /></SelectTrigger>
+                    <SelectContent>{suppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}{s.kind && s.kind !== "supplier" ? " (virtual)" : ""}
+                      </SelectItem>
+                    ))}</SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">Pick "💵 Cash in Hand" or "🏦 Bank" for tickets you bought from the local market (no invoice). Cost will auto-deduct from that account.</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Buyer type</Label>
-                  <Select value={form.buyer_type} onValueChange={(v: any) => setForm({ ...form, buyer_type: v, buyer_id: "" })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="customer">Customer</SelectItem>
-                      <SelectItem value="sub_agent">Sub-agent</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+              <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium">Walking customer (no account)</div>
+                  <div className="text-xs text-muted-foreground">Just enter their name + phone. Auto-saved as a walk-in customer.</div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Buyer *</Label>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Select value={form.buyer_id} onValueChange={(v) => setForm({ ...form, buyer_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
-                        <SelectContent>{buyerOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                <Switch checked={form.walking_customer}
+                  onCheckedChange={(v) => setForm({ ...form, walking_customer: v, buyer_id: v ? "" : form.buyer_id })} />
+              </div>
+
+              {form.walking_customer ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2"><Label>Walking customer name *</Label><Input required maxLength={120} value={form.walking_name} onChange={(e) => setForm({ ...form, walking_name: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Phone</Label><Input maxLength={40} value={form.walking_phone} onChange={(e) => setForm({ ...form, walking_phone: e.target.value })} /></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Buyer type</Label>
+                    <Select value={form.buyer_type} onValueChange={(v: any) => setForm({ ...form, buyer_type: v, buyer_id: "" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="customer">Customer</SelectItem>
+                        <SelectItem value="sub_agent">Sub-agent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Buyer *</Label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Select value={form.buyer_id} onValueChange={(v) => setForm({ ...form, buyer_id: v })}>
+                          <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
+                          <SelectContent>{buyerOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      {form.buyer_type === "customer" && (
+                        <QuickAddCustomer onCreated={(c) => { setCustomers((cs) => [c, ...cs]); setForm((f) => ({ ...f, buyer_id: c.id })); }} />
+                      )}
                     </div>
-                    {form.buyer_type === "customer" && (
-                      <QuickAddCustomer onCreated={(c) => { setCustomers((cs) => [c, ...cs]); setForm((f) => ({ ...f, buyer_id: c.id })); }} />
-                    )}
                   </div>
                 </div>
-              </div>
+              )}
               {!form.is_service_only && (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2"><Label>Cost (from supplier)</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} /></div>
