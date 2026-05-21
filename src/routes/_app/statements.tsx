@@ -32,7 +32,7 @@ function StatementsPage() {
   const [opening, setOpening] = useState(0);
 
   useEffect(() => {
-    supabase.from(PARTY_TABLES[partyType]).select("id, name").order("name").then(({ data }) => {
+    supabase.from(PARTY_TABLES[partyType]).select("id, name").eq("is_deleted", false).order("name").then(({ data }) => {
       setParties(data ?? []); setPartyId("");
     });
   }, [partyType]);
@@ -44,14 +44,14 @@ function StatementsPage() {
       // opening balance (suppliers/sub_agents only)
       let openBal = 0;
       if (partyType !== "customer") {
-        const { data } = await supabase.from(PARTY_TABLES[partyType]).select("opening_balance").eq("id", partyId).maybeSingle();
+        const { data } = await supabase.from(PARTY_TABLES[partyType]).select("opening_balance").eq("id", partyId).eq("is_deleted", false).maybeSingle();
         openBal = Number((data as any)?.opening_balance ?? 0);
       }
       setOpening(openBal);
 
       if (partyType === "supplier") {
         // tickets where this supplier
-        const { data: tk } = await supabase.from("tickets").select("*").eq("supplier_id", partyId).order("created_at");
+        const { data: tk } = await supabase.from("tickets").select("*").eq("supplier_id", partyId).eq("is_deleted", false).order("created_at");
         for (const t of tk ?? []) {
           list.push({
             date: t.created_at, description: `Ticket: ${t.passenger_name} (${t.route ?? "—"})`,
@@ -60,12 +60,12 @@ function StatementsPage() {
         }
         const ids = (tk ?? []).map((t: any) => t.id);
         if (ids.length) {
-          const { data: svs } = await supabase.from("ticket_services").select("*").in("ticket_id", ids);
+          const { data: svs } = await supabase.from("ticket_services").select("*").in("ticket_id", ids).eq("is_deleted", false);
           for (const s of svs ?? []) list.push({
             date: s.created_at, description: `Service: ${s.service_type}`, ref: "",
             debit: 0, credit: Number(s.cost_price),
           });
-          const { data: rfs } = await supabase.from("refunds").select("*").in("ticket_id", ids);
+          const { data: rfs } = await supabase.from("refunds").select("*").in("ticket_id", ids).eq("is_deleted", false);
           for (const r of rfs ?? []) {
             if (Number(r.supplier_retention_amount) > 0)
               list.push({ date: r.created_at, description: "Refund — supplier retention", ref: "", debit: Number(r.supplier_retention_amount), credit: 0 });
@@ -74,25 +74,25 @@ function StatementsPage() {
           }
         }
       } else {
-        const { data: tk } = await supabase.from("tickets").select("*").eq("buyer_type", partyType).eq("buyer_id", partyId).order("created_at");
+        const { data: tk } = await supabase.from("tickets").select("*").eq("buyer_type", partyType).eq("buyer_id", partyId).eq("is_deleted", false).order("created_at");
         for (const t of tk ?? []) list.push({
           date: t.created_at, description: `Ticket: ${t.passenger_name} (${t.route ?? "—"})`,
           ref: t.ticket_no ?? "", debit: Number(t.sale_price), credit: 0,
         });
         const ids = (tk ?? []).map((t: any) => t.id);
         if (ids.length) {
-          const { data: svs } = await supabase.from("ticket_services").select("*").in("ticket_id", ids);
+          const { data: svs } = await supabase.from("ticket_services").select("*").in("ticket_id", ids).eq("is_deleted", false);
           for (const s of svs ?? []) list.push({
             date: s.created_at, description: `Service: ${s.service_type}`, ref: "",
             debit: Number(s.sale_price), credit: 0,
           });
-          const { data: rfs } = await supabase.from("refunds").select("*").in("ticket_id", ids);
+          const { data: rfs } = await supabase.from("refunds").select("*").in("ticket_id", ids).eq("is_deleted", false);
           for (const r of rfs ?? []) if (Number(r.customer_refund_amount) > 0)
             list.push({ date: r.created_at, description: "Refund to buyer", ref: "", debit: 0, credit: Number(r.customer_refund_amount) });
         }
       }
 
-      const { data: pays } = await supabase.from("payments").select("*").eq("party_type", partyType).eq("party_id", partyId).order("created_at");
+      const { data: pays } = await supabase.from("payments").select("*").eq("party_type", partyType).eq("party_id", partyId).eq("is_deleted", false).order("created_at");
       for (const p of pays ?? []) {
         if (partyType === "supplier") {
           // out = we paid them → debit (reduces credit balance)
