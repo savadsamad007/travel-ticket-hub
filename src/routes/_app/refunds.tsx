@@ -155,6 +155,8 @@ function RefundsPage() {
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Ticket</TableHead>
+              <TableHead>Passenger</TableHead>
+              <TableHead>Route</TableHead>
               <TableHead className="text-right">To buyer</TableHead>
               <TableHead className="text-right">Supplier retention</TableHead>
               <TableHead className="text-right">Supplier returns</TableHead>
@@ -162,17 +164,22 @@ function RefundsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No refunds yet.</TableCell></TableRow>}
-            {rows.map((r) => (
+            {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No refunds yet.</TableCell></TableRow>}
+            {rows.map((r) => {
+              const t = ticketInfo(r.ticket_id);
+              return (
               <TableRow key={r.id} className="hover:bg-muted/40">
                 <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-sm">{ticketLabel(r.ticket_id)}</TableCell>
+                <TableCell className="text-sm font-medium">{t?.ticket_no ? `#${t.ticket_no}` : "—"}</TableCell>
+                <TableCell className="text-sm font-semibold">{t?.passenger_name ?? "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{t?.route ?? "—"}</TableCell>
                 <TableCell className="text-right text-warning font-semibold">{fmt(r.customer_refund_amount)}</TableCell>
                 <TableCell className="text-right text-info font-semibold">{fmt(r.supplier_retention_amount)}</TableCell>
                 <TableCell className="text-right text-success font-semibold">{fmt(r.supplier_refund_amount)}</TableCell>
                 <TableCell className="text-right">{isAdmin && <Button size="icon" variant="ghost" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
