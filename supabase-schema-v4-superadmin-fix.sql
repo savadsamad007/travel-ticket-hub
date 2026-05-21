@@ -8,15 +8,62 @@
 -- ============================================================
 
 -- ---------- 1) super_admin RLS ----------
+do $$ begin
+  alter type public.app_role add value if not exists 'super_admin';
+exception when duplicate_object then null; end $$;
+
 create or replace function public.is_admin_like() returns boolean
 language sql stable security definer set search_path = public as $$
   select role::text in ('admin','super_admin')
   from public.user_agency where user_id = auth.uid()
 $$;
 
+create or replace function public.handle_new_user_agency()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  requested_owner uuid := nullif(new.raw_user_meta_data->>'agency_owner', '')::uuid;
+  requested_role text := coalesce(new.raw_user_meta_data->>'staff_role', 'admin');
+  requested_permissions jsonb := coalesce((new.raw_user_meta_data->'permissions')::jsonb, '{}'::jsonb);
+begin
+  if requested_owner is not null
+     and requested_owner <> new.id
+     and exists (
+       select 1 from public.user_agency
+       where user_id = requested_owner
+         and agency_owner = requested_owner
+         and role::text in ('admin','super_admin')
+     ) then
+    insert into public.user_agency (user_id, agency_owner, role, full_name, permissions)
+    values (
+      new.id,
+      requested_owner,
+      case when requested_role = 'admin' then 'admin'::public.app_role else 'salesman'::public.app_role end,
+      coalesce(new.raw_user_meta_data->>'full_name', new.email),
+      requested_permissions
+    )
+    on conflict (user_id) do nothing;
+  else
+    insert into public.user_agency (user_id, agency_owner, role, full_name)
+    values (new.id, new.id, 'admin', coalesce(new.raw_user_meta_data->>'full_name', new.email))
+    on conflict (user_id) do nothing;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created_agency on auth.users;
+create trigger on_auth_user_created_agency
+  after insert on auth.users for each row execute function public.handle_new_user_agency();
+
 drop policy if exists "ua_admin_insert" on public.user_agency;
 create policy "ua_admin_insert" on public.user_agency for insert
   with check (agency_owner = public.my_agency_owner() and public.is_admin_like());
+
+drop policy if exists "ua_staff_claim_signup" on public.user_agency;
+create policy "ua_staff_claim_signup" on public.user_agency for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 drop policy if exists "ua_admin_update" on public.user_agency;
 create policy "ua_admin_update" on public.user_agency for update
