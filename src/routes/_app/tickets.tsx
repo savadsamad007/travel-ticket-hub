@@ -305,11 +305,20 @@ function TicketsPage() {
                   <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Choose supplier or Cash/Bank…" /></SelectTrigger>
                     <SelectContent>{suppliers.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No suppliers yet — add one in Suppliers page.</div>}
-                    {suppliers.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.kind === "cash" ? "💵 " : s.kind === "bank" ? "🏦 " : ""}{s.name}
-                      </SelectItem>
-                    ))}</SelectContent>
+                    {(() => {
+                      // dedupe by (kind, lowercased clean name) so old duplicates don't render twice
+                      const seen = new Set<string>();
+                      const clean = (n: string) => n.replace(/^[\p{Emoji}\s]+/u, "").trim();
+                      return suppliers.filter((s) => {
+                        const k = `${s.kind || "supplier"}::${clean(s.name).toLowerCase()}`;
+                        if (seen.has(k)) return false;
+                        seen.add(k); return true;
+                      }).map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.kind === "cash" ? "💵 " : s.kind === "bank" ? "🏦 " : ""}{clean(s.name)}
+                        </SelectItem>
+                      ));
+                    })()}</SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">Pick "Cash in Hand" / "Bank" for tickets bought from the local market — cost auto-deducts from that account.</p>
                 </div>
