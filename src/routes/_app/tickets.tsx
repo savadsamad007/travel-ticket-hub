@@ -154,7 +154,7 @@ function TicketsPage() {
         ticket_no: form.ticket_no || null, pnr: form.pnr || null,
         passenger_name: form.passenger_name.trim(), route: form.route || null,
         travel_date: form.travel_date || null, airline: form.airline || null,
-        supplier_id: form.is_service_only && !form.supplier_id ? null : (form.supplier_id || null),
+        supplier_id: form.supplier_id,
         buyer_type, buyer_id,
         cost_price: form.is_service_only ? 0 : Number(form.cost_price || 0),
         sale_price: form.is_service_only ? 0 : Number(form.sale_price || 0),
