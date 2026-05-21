@@ -12,7 +12,7 @@ GO
 DECLARE @tables TABLE (name SYSNAME);
 INSERT INTO @tables(name) VALUES
  ('tickets'),('ticket_services'),('payments'),('refunds'),
- ('customers'),('suppliers'),('sub_agents');
+ ('customers'),('suppliers'),('sub_agents'),('user_agency');
 
 DECLARE @t SYSNAME;
 DECLARE cur CURSOR LOCAL FAST_FORWARD FOR SELECT name FROM @tables;
@@ -26,6 +26,8 @@ BEGIN
     EXEC('ALTER TABLE ' + @t + ' ADD deleted_at NVARCHAR(64) NULL');
   IF COL_LENGTH(@t,'deleted_by') IS NULL
     EXEC('ALTER TABLE ' + @t + ' ADD deleted_by NVARCHAR(64) NULL');
+  IF COL_LENGTH(@t,'updated_at') IS NULL
+    EXEC('ALTER TABLE ' + @t + ' ADD updated_at NVARCHAR(64) NULL');
   FETCH NEXT FROM cur INTO @t;
 END
 CLOSE cur; DEALLOCATE cur;
