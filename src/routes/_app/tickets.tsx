@@ -262,13 +262,20 @@ function TicketsPage() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{editing ? "Edit" : "New"} ticket</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
-                <div>
-                  <div className="text-sm font-medium">Service-only entry</div>
-                  <div className="text-xs text-muted-foreground">Customer bought ticket from another agency — only add services.</div>
-                </div>
-                <Switch checked={form.is_service_only}
-                  onCheckedChange={(v) => setForm({ ...form, is_service_only: v, supplier_id: v ? "" : form.supplier_id, cost_price: v ? "0" : form.cost_price, sale_price: v ? "0" : form.sale_price })} />
+              <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-muted/30 px-3 py-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch checked={form.walking_customer}
+                    onCheckedChange={(v) => setForm({ ...form, walking_customer: v, buyer_id: v ? "" : form.buyer_id })} />
+                  <span className="font-medium">Walking customer</span>
+                  <span className="text-xs text-muted-foreground">(no account — just name + phone)</span>
+                </label>
+                <span className="text-muted-foreground/40">|</span>
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch checked={form.is_service_only}
+                    onCheckedChange={(v) => setForm({ ...form, is_service_only: v, cost_price: v ? "0" : form.cost_price, sale_price: v ? "0" : form.sale_price })} />
+                  <span className="font-medium">Service-only</span>
+                  <span className="text-xs text-muted-foreground">(no airfare — just add-ons)</span>
+                </label>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -294,34 +301,21 @@ function TicketsPage() {
                   <AirlineAutocomplete value={form.airline} onChange={(v) => setForm({ ...form, airline: v })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Supplier {form.is_service_only ? "(optional)" : "*"}</Label>
+                  <Label>Paid to / Supplier *</Label>
                   <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
-                    <SelectTrigger><SelectValue placeholder={form.is_service_only ? "— optional —" : "Choose…"} /></SelectTrigger>
-                    <SelectContent>{suppliers.map((s) => (
+                    <SelectTrigger><SelectValue placeholder="Choose supplier or Cash/Bank…" /></SelectTrigger>
+                    <SelectContent>{suppliers.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No suppliers yet — add one in Suppliers page.</div>}
+                    {suppliers.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.name}{s.kind && s.kind !== "supplier" ? " (virtual)" : ""}
+                        {s.kind === "cash" ? "💵 " : s.kind === "bank" ? "🏦 " : ""}{s.name}
                       </SelectItem>
                     ))}</SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Pick "💵 Cash in Hand" or "🏦 Bank" for tickets you bought from the local market (no invoice). Cost will auto-deduct from that account.</p>
+                  <p className="text-xs text-muted-foreground">Pick "Cash in Hand" / "Bank" for tickets bought from the local market — cost auto-deducts from that account.</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
-                <div>
-                  <div className="text-sm font-medium">Walking customer (no account)</div>
-                  <div className="text-xs text-muted-foreground">Just enter their name + phone. Auto-saved as a walk-in customer.</div>
-                </div>
-                <Switch checked={form.walking_customer}
-                  onCheckedChange={(v) => setForm({ ...form, walking_customer: v, buyer_id: v ? "" : form.buyer_id })} />
-              </div>
-
-              {form.walking_customer ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>Walking customer name *</Label><Input required maxLength={120} value={form.walking_name} onChange={(e) => setForm({ ...form, walking_name: e.target.value })} /></div>
-                  <div className="space-y-2"><Label>Phone</Label><Input maxLength={40} value={form.walking_phone} onChange={(e) => setForm({ ...form, walking_phone: e.target.value })} /></div>
-                </div>
-              ) : (
+              {!form.walking_customer ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Buyer type</Label>
@@ -347,6 +341,11 @@ function TicketsPage() {
                       )}
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2"><Label>Walking customer name *</Label><Input required maxLength={120} value={form.walking_name} onChange={(e) => setForm({ ...form, walking_name: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Phone</Label><Input maxLength={40} value={form.walking_phone} onChange={(e) => setForm({ ...form, walking_phone: e.target.value })} /></div>
                 </div>
               )}
               {!form.is_service_only && (
