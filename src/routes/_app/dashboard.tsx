@@ -23,14 +23,14 @@ function Dashboard() {
   useEffect(() => {
     (async () => {
       const [tc, su, cu, ag, tk, py, rf, rt] = await Promise.all([
-        supabase.from("tickets").select("*", { count: "exact", head: true }),
-        supabase.from("suppliers").select("*", { count: "exact", head: true }),
-        supabase.from("customers").select("*", { count: "exact", head: true }),
-        supabase.from("sub_agents").select("*", { count: "exact", head: true }),
-        supabase.from("tickets").select("cost_price,sale_price"),
-        supabase.from("payments").select("direction,amount,method"),
-        supabase.from("refunds").select("*", { count: "exact", head: true }),
-        supabase.from("tickets").select("*").order("created_at", { ascending: false }).limit(5),
+        supabase.from("tickets").select("*", { count: "exact", head: true }).eq("is_deleted", false),
+        supabase.from("suppliers").select("*", { count: "exact", head: true }).eq("is_deleted", false),
+        supabase.from("customers").select("*", { count: "exact", head: true }).eq("is_deleted", false),
+        supabase.from("sub_agents").select("*", { count: "exact", head: true }).eq("is_deleted", false),
+        supabase.from("tickets").select("cost_price,sale_price").eq("is_deleted", false),
+        supabase.from("payments").select("direction,amount,method").eq("is_deleted", false),
+        supabase.from("refunds").select("*", { count: "exact", head: true }).eq("is_deleted", false),
+        supabase.from("tickets").select("*").eq("is_deleted", false).order("created_at", { ascending: false }).limit(5),
       ]);
       const sale = (tk.data ?? []).reduce((s, t: any) => s + Number(t.sale_price), 0);
       const cost = (tk.data ?? []).reduce((s, t: any) => s + Number(t.cost_price), 0);
