@@ -31,6 +31,7 @@ function PaymentsPage() {
   const [agents, setAgents] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
+    date: new Date().toISOString().slice(0, 10),
     party_type: "customer" as PartyType, party_id: "", direction: "in" as "in"|"out",
     amount: "", method: "cash" as "cash"|"bank"|"credit", reference: "", notes: "",
   });
