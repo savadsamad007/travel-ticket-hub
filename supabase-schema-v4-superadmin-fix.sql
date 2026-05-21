@@ -20,7 +20,15 @@ $$;
 
 alter table public.user_agency
   add column if not exists permissions jsonb not null default '{}'::jsonb,
-  add column if not exists created_by uuid references auth.users(id) on delete set null;
+  add column if not exists created_by uuid references auth.users(id) on delete set null,
+  add column if not exists email text;
+
+-- Backfill email from auth.users for existing rows
+update public.user_agency ua
+   set email = au.email
+  from auth.users au
+ where au.id = ua.user_id and (ua.email is null or ua.email = '');
+
 
 create table if not exists public.staff_invites (
   token uuid primary key,
