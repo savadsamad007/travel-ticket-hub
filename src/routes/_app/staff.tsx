@@ -44,7 +44,7 @@ function StaffPage() {
   const [form, setForm] = useState({ full_name: "", email: "", password: "", role: "salesman" as "admin" | "salesman" });
 
   // permissions editor
-  const [permEditor, setPermEditor] = useState<{ uid: string; name: string; perms: Record<string, boolean> } | null>(null);
+  const [permEditor, setPermEditor] = useState<{ uid: string; name: string; role: string; perms: Record<string, boolean> } | null>(null);
 
   async function load() {
     if (!agencyOwner) return;
@@ -113,10 +113,10 @@ function StaffPage() {
     if (!permEditor) return;
     const { error } = await supabase
       .from("user_agency")
-      .update({ permissions: permEditor.perms })
+      .update({ permissions: permEditor.perms, full_name: permEditor.name })
       .eq("user_id", permEditor.uid);
     if (error) return toast.error(error.message);
-    toast.success("Permissions updated");
+    toast.success("Staff updated");
     setPermEditor(null);
     load();
   }
@@ -183,12 +183,10 @@ function StaffPage() {
                   <TableCell className="text-xs text-muted-foreground max-w-xs truncate">{permList}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right space-x-1">
-                    {r.role === "salesman" && (
-                      <Button size="icon" variant="ghost" title="Edit permissions"
-                        onClick={() => setPermEditor({ uid: r.user_id, name: r.full_name || r.user_id, perms: { ...(perms || {}) } })}>
-                        <Settings2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button size="icon" variant="ghost" title="Edit staff"
+                      onClick={() => setPermEditor({ uid: r.user_id, name: r.full_name || "", role: r.role, perms: { ...(perms || {}) } })}>
+                      <Settings2 className="h-4 w-4" />
+                    </Button>
                     {r.user_id !== user?.id && (
                       <Button size="icon" variant="ghost" onClick={() => removeStaff(r.user_id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -206,24 +204,37 @@ function StaffPage() {
       <Dialog open={!!permEditor} onOpenChange={(o) => !o && setPermEditor(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Permissions — {permEditor?.name}</DialogTitle>
+            <DialogTitle>Edit staff</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Tick which pages this salesman can access. Profit columns and Delete are always hidden for salesmen.
-          </p>
-          <div className="grid grid-cols-2 gap-3 py-2">
-            {permEditor && PERM_KEYS.map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={!!permEditor.perms[key]}
-                  onCheckedChange={(v) =>
-                    setPermEditor({ ...permEditor, perms: { ...permEditor.perms, [key]: !!v } })
-                  }
-                />
-                {label}
-              </label>
-            ))}
-          </div>
+          {permEditor && (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Full name</Label>
+                <Input maxLength={100} value={permEditor.name}
+                  onChange={(e) => setPermEditor({ ...permEditor, name: e.target.value })} />
+              </div>
+              {permEditor.role === "salesman" ? (
+                <>
+                  <p className="text-xs text-muted-foreground">Tick which pages this salesman can access. Profit columns and Delete are always hidden for salesmen.</p>
+                  <div className="grid grid-cols-2 gap-3 py-1">
+                    {PERM_KEYS.map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={!!permEditor.perms[key]}
+                          onCheckedChange={(v) =>
+                            setPermEditor({ ...permEditor, perms: { ...permEditor.perms, [key]: !!v } })
+                          }
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 p-2">Admins have full access — no per-page permissions.</p>
+              )}
+            </div>
+          )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() =>
               permEditor && setPermEditor({ ...permEditor, perms: { ...DEFAULT_SALESMAN_PERMS } })
