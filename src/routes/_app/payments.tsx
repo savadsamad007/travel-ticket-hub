@@ -64,11 +64,12 @@ function PaymentsPage() {
         party_type: form.party_type, party_id: form.party_id,
         direction: form.direction, amount: Number(form.amount),
         method: form.method, reference: form.reference || null, notes: form.notes || null,
+        created_at: form.date ? new Date(form.date).toISOString() : new Date().toISOString(),
       });
       if (error) throw error;
       toast.success("Payment recorded");
       setOpen(false);
-      setForm({ party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "" });
+      setForm({ date: new Date().toISOString().slice(0,10), party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "" });
       load();
     } catch (e: any) { toast.error(e.message); }
   }
