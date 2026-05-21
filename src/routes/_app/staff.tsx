@@ -165,6 +165,7 @@ function StaffPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Under admin</TableHead>
               <TableHead>Permissions</TableHead>
@@ -173,7 +174,7 @@ function StaffPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>}
+            {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>}
             {rows.map((r) => {
               const perms = (r.permissions ?? {}) as Record<string, boolean>;
               const permList = r.role === "admin" || r.role === "super_admin"
