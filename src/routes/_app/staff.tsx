@@ -54,7 +54,7 @@ function StaffPage() {
     if (!agencyOwner) return;
     const { data, error } = await supabase
       .from("user_agency")
-      .select("user_id, role, full_name, permissions, created_at, created_by")
+      .select("user_id, role, full_name, email, permissions, created_at, created_by")
       .eq("agency_owner", agencyOwner)
       .order("created_at", { ascending: true });
     if (error) return toast.error(error.message);
@@ -165,6 +165,7 @@ function StaffPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Under admin</TableHead>
               <TableHead>Permissions</TableHead>
@@ -173,7 +174,7 @@ function StaffPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>}
+            {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>}
             {rows.map((r) => {
               const perms = (r.permissions ?? {}) as Record<string, boolean>;
               const permList = r.role === "admin" || r.role === "super_admin"
@@ -188,6 +189,7 @@ function StaffPage() {
                       {r.user_id === user?.id && <span className="text-xs text-muted-foreground">(you)</span>}
                     </div>
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.email || "—"}</TableCell>
                   <TableCell><span className={`text-xs px-2 py-1 rounded-full ${r.role === "admin" || r.role === "super_admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{r.role}</span></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{r.role === "salesman" ? (r.created_by_name || "—") : "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-xs truncate">{permList}</TableCell>

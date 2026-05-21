@@ -20,7 +20,15 @@ $$;
 
 alter table public.user_agency
   add column if not exists permissions jsonb not null default '{}'::jsonb,
-  add column if not exists created_by uuid references auth.users(id) on delete set null;
+  add column if not exists created_by uuid references auth.users(id) on delete set null,
+  add column if not exists email text;
+
+-- Backfill email from auth.users for existing rows
+update public.user_agency ua
+   set email = au.email
+  from auth.users au
+ where au.id = ua.user_id and (ua.email is null or ua.email = '');
+
 
 create table if not exists public.staff_invites (
   token uuid primary key,
@@ -70,20 +78,21 @@ begin
          and agency_owner = invite_row.agency_owner
          and role::text in ('admin','super_admin')
      ) then
-    insert into public.user_agency (user_id, agency_owner, role, full_name, permissions, created_by)
+    insert into public.user_agency (user_id, agency_owner, role, full_name, email, permissions, created_by)
     values (
       new.id,
       invite_row.agency_owner,
       invite_row.role,
       coalesce(invite_row.full_name, new.raw_user_meta_data->>'full_name', new.email),
+      new.email,
       invite_row.permissions,
       invite_row.created_by
     )
     on conflict (user_id) do nothing;
     update public.staff_invites set used_by = new.id, used_at = now() where token = invite_row.token;
   else
-    insert into public.user_agency (user_id, agency_owner, role, full_name)
-    values (new.id, new.id, 'admin', coalesce(new.raw_user_meta_data->>'full_name', new.email))
+    insert into public.user_agency (user_id, agency_owner, role, full_name, email)
+    values (new.id, new.id, 'admin', coalesce(new.raw_user_meta_data->>'full_name', new.email), new.email)
     on conflict (user_id) do nothing;
   end if;
 
