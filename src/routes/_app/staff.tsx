@@ -68,16 +68,23 @@ function StaffPage() {
       const tmp = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
+      const initialPerms = form.role === "admin" ? {} : DEFAULT_SALESMAN_PERMS;
       const { data: signUpData, error: signUpErr } = await tmp.auth.signUp({
         email: form.email.trim(),
         password: form.password,
-        options: { data: { full_name: form.full_name } },
+        options: {
+          data: {
+            full_name: form.full_name,
+            agency_owner: agencyOwner,
+            staff_role: form.role,
+            permissions: initialPerms,
+          },
+        },
       });
       if (signUpErr) throw signUpErr;
       const newUserId = signUpData.user?.id;
       if (!newUserId) throw new Error("Could not create user (may already exist)");
 
-      const initialPerms = form.role === "admin" ? {} : DEFAULT_SALESMAN_PERMS;
       const { error: upErr } = await supabase
         .from("user_agency")
         .upsert(
@@ -90,7 +97,26 @@ function StaffPage() {
           },
           { onConflict: "user_id" },
         );
-      if (upErr) throw upErr;
+      if (upErr) {
+        if (signUpData.session) {
+          await tmp.auth.setSession({
+            access_token: signUpData.session.access_token,
+            refresh_token: signUpData.session.refresh_token,
+          });
+          const { error: claimErr } = await tmp
+            .from("user_agency")
+            .update({
+              agency_owner: agencyOwner,
+              role: form.role,
+              full_name: form.full_name || form.email,
+              permissions: initialPerms,
+            })
+            .eq("user_id", newUserId);
+          if (claimErr) throw upErr;
+        } else {
+          throw upErr;
+        }
+      }
 
       toast.success(`${form.role === "admin" ? "Admin" : "Salesman"} added`);
       setOpen(false);
