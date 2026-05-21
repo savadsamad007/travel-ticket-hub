@@ -159,7 +159,7 @@ function PaymentsPage() {
             {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments yet.</TableCell></TableRow>}
             {rows.map((r) => (
               <TableRow key={r.id} className="hover:bg-muted/40">
-                <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                <TableCell className="text-sm">{new Date(r.paid_at ?? r.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>
                   <div>{partyName(r.party_type, r.party_id)}</div>
                   <div className="text-xs text-muted-foreground capitalize">{r.party_type.replace("_", "-")}</div>
