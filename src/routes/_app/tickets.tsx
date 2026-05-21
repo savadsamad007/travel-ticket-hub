@@ -113,15 +113,37 @@ function TicketsPage() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.is_service_only && !form.supplier_id) return toast.error("Pick a supplier (or toggle 'Service-only')");
-    if (!form.buyer_id) return toast.error("Pick a buyer");
+    if (!form.walking_customer && !form.buyer_id) return toast.error("Pick a buyer (or toggle Walking customer)");
+    if (form.walking_customer && !form.walking_name.trim()) return toast.error("Enter walking customer name");
     try {
       const owner_id = await getOwnerId();
+
+      // Walking customer → upsert into customers, then use that id as buyer
+      let buyer_id = form.buyer_id;
+      let buyer_type = form.buyer_type;
+      if (form.walking_customer) {
+        const { data: newCust, error: cErr } = await supabase
+          .from("customers")
+          .insert({
+            owner_id,
+            name: form.walking_name.trim(),
+            phone: form.walking_phone || null,
+            is_walk_in: true,
+          })
+          .select("id, name, phone")
+          .single();
+        if (cErr) throw cErr;
+        buyer_id = newCust.id;
+        buyer_type = "customer";
+        setCustomers((cs) => [newCust as any, ...cs]);
+      }
+
       const payload: any = {
         ticket_no: form.ticket_no || null, pnr: form.pnr || null,
         passenger_name: form.passenger_name.trim(), route: form.route || null,
         travel_date: form.travel_date || null, airline: form.airline || null,
-        supplier_id: form.is_service_only ? null : form.supplier_id,
-        buyer_type: form.buyer_type, buyer_id: form.buyer_id,
+        supplier_id: form.is_service_only && !form.supplier_id ? null : (form.supplier_id || null),
+        buyer_type, buyer_id,
         cost_price: form.is_service_only ? 0 : Number(form.cost_price || 0),
         sale_price: form.is_service_only ? 0 : Number(form.sale_price || 0),
         status: form.status, notes: form.notes || null,
@@ -138,6 +160,18 @@ function TicketsPage() {
         if (error) throw error;
         ticketId = data.id;
         toast.success("Ticket created");
+
+        // Virtual supplier (Cash / Bank) → auto-record a payment-out so cash book reflects it
+        const sup = suppliers.find((s) => s.id === payload.supplier_id);
+        if (sup && (sup.kind === "cash" || sup.kind === "bank") && Number(payload.cost_price) > 0) {
+          const { error: payErr } = await supabase.from("payments").insert({
+            owner_id, party_type: "supplier", party_id: sup.id,
+            direction: "out", amount: Number(payload.cost_price),
+            method: sup.kind, reference: `Ticket ${form.ticket_no || ticketId.slice(0, 8)}`,
+            ticket_id: ticketId, notes: "Auto: ticket bought from local market",
+          });
+          if (payErr) toast.error("Ticket saved, but cash entry failed: " + payErr.message);
+        }
       }
       // insert new services from form (only on create — edit keeps existing services unchanged)
       if (!editing && form.services.length) {
