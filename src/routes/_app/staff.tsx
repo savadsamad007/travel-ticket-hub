@@ -36,6 +36,10 @@ const PERM_KEYS: { key: PermKey; label: string }[] = [
 
 const DEFAULT_SALESMAN_PERMS = { tickets: true, customers: true, payments: true } as Record<string, boolean>;
 
+function makeInviteToken() {
+  return crypto.randomUUID();
+}
+
 function StaffPage() {
   const { user, role, agencyOwner } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
@@ -68,29 +72,31 @@ function StaffPage() {
       const tmp = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
+      const initialPerms = form.role === "admin" ? {} : DEFAULT_SALESMAN_PERMS;
+      const inviteToken = makeInviteToken();
+      const { error: inviteErr } = await supabase.from("staff_invites").insert({
+        token: inviteToken,
+        agency_owner: agencyOwner,
+        email: form.email.trim(),
+        role: form.role,
+        full_name: form.full_name || form.email,
+        permissions: initialPerms,
+        created_by: user?.id,
+      });
+      if (inviteErr) throw inviteErr;
       const { data: signUpData, error: signUpErr } = await tmp.auth.signUp({
         email: form.email.trim(),
         password: form.password,
-        options: { data: { full_name: form.full_name } },
+        options: {
+          data: {
+            full_name: form.full_name,
+            staff_invite_token: inviteToken,
+          },
+        },
       });
       if (signUpErr) throw signUpErr;
       const newUserId = signUpData.user?.id;
       if (!newUserId) throw new Error("Could not create user (may already exist)");
-
-      const initialPerms = form.role === "admin" ? {} : DEFAULT_SALESMAN_PERMS;
-      const { error: upErr } = await supabase
-        .from("user_agency")
-        .upsert(
-          {
-            user_id: newUserId,
-            agency_owner: agencyOwner,
-            role: form.role,
-            full_name: form.full_name || form.email,
-            permissions: initialPerms,
-          },
-          { onConflict: "user_id" },
-        );
-      if (upErr) throw upErr;
 
       toast.success(`${form.role === "admin" ? "Admin" : "Salesman"} added`);
       setOpen(false);
