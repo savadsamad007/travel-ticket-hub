@@ -113,10 +113,10 @@ function StaffPage() {
     if (!permEditor) return;
     const { error } = await supabase
       .from("user_agency")
-      .update({ permissions: permEditor.perms })
+      .update({ permissions: permEditor.perms, full_name: permEditor.name })
       .eq("user_id", permEditor.uid);
     if (error) return toast.error(error.message);
-    toast.success("Permissions updated");
+    toast.success("Staff updated");
     setPermEditor(null);
     load();
   }
