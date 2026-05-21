@@ -54,11 +54,13 @@ function StaffPage() {
     if (!agencyOwner) return;
     const { data, error } = await supabase
       .from("user_agency")
-      .select("user_id, role, full_name, permissions, created_at")
+      .select("user_id, role, full_name, permissions, created_at, created_by")
       .eq("agency_owner", agencyOwner)
       .order("created_at", { ascending: true });
     if (error) return toast.error(error.message);
-    setRows(data ?? []);
+    const list = data ?? [];
+    const nameById = new Map<string, string>(list.map((r: any) => [r.user_id, r.full_name || "—"]));
+    setRows(list.map((r: any) => ({ ...r, created_by_name: r.created_by ? (nameById.get(r.created_by) || "—") : "—" })));
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [agencyOwner]);
 
