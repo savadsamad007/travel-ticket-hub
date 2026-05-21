@@ -276,10 +276,9 @@ function mirror_(d) {
   const idCol = headers.indexOf('id');
   const data = s.getDataRange().getValues();
   if (op === 'delete') {
-    if (idCol >= 0 && row.id) {
-      for (let i = 1; i < data.length; i++) if (String(data[i][idCol]) === String(row.id)) { s.deleteRow(i + 1); break; }
-    }
-    return { ok: true };
+    row.is_deleted = row.is_deleted || true;
+    row.deleted_at = row.deleted_at || new Date().toISOString();
+    row.updated_at = row.updated_at || row.deleted_at;
   }
   // upsert
   if (idCol >= 0 && row.id) {
