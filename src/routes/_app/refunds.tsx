@@ -115,9 +115,13 @@ function RefundsPage() {
                     {filteredTickets.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">No matches.</div>}
                     {filteredTickets.map((t) => {
                       const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
+                      const isRefunded = t.status === "refunded";
                       return (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.ticket_no ? `#${t.ticket_no} · ` : ""}{t.passenger_name} — {t.route ?? "—"} · {buyer?.name ?? "—"} ({fmt(t.sale_price)})
+                        <SelectItem key={t.id} value={t.id} disabled={isRefunded}>
+                          <span className={isRefunded ? "text-warning line-through opacity-70" : ""}>
+                            {isRefunded ? "↩ REFUNDED · " : ""}
+                            {t.ticket_no ? `#${t.ticket_no} · ` : ""}{t.passenger_name} — {t.route ?? "—"} · {buyer?.name ?? "—"} ({fmt(t.sale_price)})
+                          </span>
                         </SelectItem>
                       );
                     })}
