@@ -13,16 +13,8 @@ function renderShell() {
   }
 }
 
-// tab toggling
-$$(".tab").forEach(
-  (t) =>
-    (t.onclick = () => {
-      $$(".tab").forEach((x) => x.classList.remove("active"));
-      t.classList.add("active");
-      $("#form-login").classList.toggle("hidden", t.dataset.tab !== "login");
-      $("#form-register").classList.toggle("hidden", t.dataset.tab !== "register");
-    }),
-);
+// (Register tab removed — accounts are created by admin from Staff page)
+
 
 $("#form-login").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -34,18 +26,6 @@ $("#form-login").addEventListener("submit", async (e) => {
     toast("Welcome back", "success");
   } catch (err) {
     $("#login-error").textContent = err.message;
-  }
-});
-$("#form-register").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  $("#register-error").textContent = "";
-  try {
-    await Auth.register(fd.get("name"), fd.get("email"), fd.get("password"));
-    renderShell();
-    toast("Account created", "success");
-  } catch (err) {
-    $("#register-error").textContent = err.message;
   }
 });
 $("#btn-logout").onclick = () => Auth.logout();
