@@ -204,24 +204,37 @@ function StaffPage() {
       <Dialog open={!!permEditor} onOpenChange={(o) => !o && setPermEditor(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Permissions — {permEditor?.name}</DialogTitle>
+            <DialogTitle>Edit staff</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Tick which pages this salesman can access. Profit columns and Delete are always hidden for salesmen.
-          </p>
-          <div className="grid grid-cols-2 gap-3 py-2">
-            {permEditor && PERM_KEYS.map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={!!permEditor.perms[key]}
-                  onCheckedChange={(v) =>
-                    setPermEditor({ ...permEditor, perms: { ...permEditor.perms, [key]: !!v } })
-                  }
-                />
-                {label}
-              </label>
-            ))}
-          </div>
+          {permEditor && (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Full name</Label>
+                <Input maxLength={100} value={permEditor.name}
+                  onChange={(e) => setPermEditor({ ...permEditor, name: e.target.value })} />
+              </div>
+              {permEditor.role === "salesman" ? (
+                <>
+                  <p className="text-xs text-muted-foreground">Tick which pages this salesman can access. Profit columns and Delete are always hidden for salesmen.</p>
+                  <div className="grid grid-cols-2 gap-3 py-1">
+                    {PERM_KEYS.map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={!!permEditor.perms[key]}
+                          onCheckedChange={(v) =>
+                            setPermEditor({ ...permEditor, perms: { ...permEditor.perms, [key]: !!v } })
+                          }
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 p-2">Admins have full access — no per-page permissions.</p>
+              )}
+            </div>
+          )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() =>
               permEditor && setPermEditor({ ...permEditor, perms: { ...DEFAULT_SALESMAN_PERMS } })
