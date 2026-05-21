@@ -94,4 +94,8 @@ create trigger on_user_agency_seed_virtual
   after insert on public.user_agency
   for each row execute function public.seed_virtual_suppliers();
 
+-- ---------- 3) Walk-in customer flag ----------
+alter table public.customers
+  add column if not exists is_walk_in boolean not null default false;
+
 -- ============== DONE ==============
