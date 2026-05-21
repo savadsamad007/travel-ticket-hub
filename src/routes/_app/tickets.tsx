@@ -94,6 +94,17 @@ function TicketsPage() {
   const buyerOptions = form.buyer_type === "customer" ? customers : agents;
   const profit = useMemo(() => Number(form.sale_price || 0) - Number(form.cost_price || 0), [form.cost_price, form.sale_price]);
 
+  const filteredTickets = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tickets;
+    return tickets.filter((t) => {
+      const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
+      const hay = [t.ticket_no, t.passenger_name, t.pnr, t.route, t.airline, buyer?.name, buyer?.phone]
+        .filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tickets, search, customers, agents]);
+
   function nameOf(arr: any[], id: string | null) { return arr.find((x) => x.id === id)?.name ?? "—"; }
   function buyerName(t: any) { return nameOf(t.buyer_type === "customer" ? customers : agents, t.buyer_id); }
   function svcTotal(id: string, k: "cost_price" | "sale_price") {
@@ -421,8 +432,8 @@ function TicketsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tickets.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8 text-muted-foreground">No tickets yet.</TableCell></TableRow>}
-            {tickets.map((t) => {
+            {filteredTickets.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8 text-muted-foreground">{tickets.length === 0 ? "No tickets yet." : "No matches."}</TableCell></TableRow>}
+            {filteredTickets.map((t) => {
               const totalCost = Number(t.cost_price) + svcTotal(t.id, "cost_price");
               const totalSale = Number(t.sale_price) + svcTotal(t.id, "sale_price");
               const p = totalSale - totalCost;
