@@ -54,11 +54,13 @@ function StaffPage() {
     if (!agencyOwner) return;
     const { data, error } = await supabase
       .from("user_agency")
-      .select("user_id, role, full_name, permissions, created_at")
+      .select("user_id, role, full_name, permissions, created_at, created_by")
       .eq("agency_owner", agencyOwner)
       .order("created_at", { ascending: true });
     if (error) return toast.error(error.message);
-    setRows(data ?? []);
+    const list = data ?? [];
+    const nameById = new Map<string, string>(list.map((r: any) => [r.user_id, r.full_name || "—"]));
+    setRows(list.map((r: any) => ({ ...r, created_by_name: r.created_by ? (nameById.get(r.created_by) || "—") : "—" })));
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [agencyOwner]);
 
@@ -164,13 +166,14 @@ function StaffPage() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Under admin</TableHead>
               <TableHead>Permissions</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="text-right w-32">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>}
+            {rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No staff yet.</TableCell></TableRow>}
             {rows.map((r) => {
               const perms = (r.permissions ?? {}) as Record<string, boolean>;
               const permList = r.role === "admin" || r.role === "super_admin"
@@ -186,6 +189,7 @@ function StaffPage() {
                     </div>
                   </TableCell>
                   <TableCell><span className={`text-xs px-2 py-1 rounded-full ${r.role === "admin" || r.role === "super_admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{r.role}</span></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.role === "salesman" ? (r.created_by_name || "—") : "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-xs truncate">{permList}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right space-x-1">
