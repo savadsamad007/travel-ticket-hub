@@ -89,6 +89,10 @@ function PaymentsPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Record payment</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Direction</Label>
