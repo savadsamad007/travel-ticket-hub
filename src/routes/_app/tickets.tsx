@@ -124,7 +124,7 @@ function TicketsPage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.is_service_only && !form.supplier_id) return toast.error("Pick a supplier (or toggle 'Service-only')");
+    if (!form.supplier_id) return toast.error("Pick a supplier (or Cash in Hand / Bank)");
     if (!form.walking_customer && !form.buyer_id) return toast.error("Pick a buyer (or toggle Walking customer)");
     if (form.walking_customer && !form.walking_name.trim()) return toast.error("Enter walking customer name");
     try {
