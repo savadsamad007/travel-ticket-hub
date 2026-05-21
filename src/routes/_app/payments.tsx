@@ -64,11 +64,12 @@ function PaymentsPage() {
         party_type: form.party_type, party_id: form.party_id,
         direction: form.direction, amount: Number(form.amount),
         method: form.method, reference: form.reference || null, notes: form.notes || null,
+        paid_at: form.paid_at || null,
       });
       if (error) throw error;
       toast.success("Payment recorded");
       setOpen(false);
-      setForm({ party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "" });
+      setForm({ party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", reference: "", notes: "", paid_at: new Date().toISOString().slice(0, 10) });
       load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -88,6 +89,7 @@ function PaymentsPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Record payment</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
+              <div className="space-y-2"><Label>Payment date</Label><Input type="date" value={form.paid_at} onChange={(e) => setForm({ ...form, paid_at: e.target.value })} required /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Direction</Label>
