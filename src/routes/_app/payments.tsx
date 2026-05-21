@@ -37,10 +37,10 @@ function PaymentsPage() {
 
   async function load() {
     const [py, sp, cu, ag] = await Promise.all([
-      supabase.from("payments").select("*").order("created_at", { ascending: false }),
-      supabase.from("suppliers").select("id,name"),
-      supabase.from("customers").select("id,name"),
-      supabase.from("sub_agents").select("id,name"),
+      supabase.from("payments").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
+      supabase.from("suppliers").select("id,name").eq("is_deleted", false),
+      supabase.from("customers").select("id,name").eq("is_deleted", false),
+      supabase.from("sub_agents").select("id,name").eq("is_deleted", false),
     ]);
     setRows(py.data ?? []); setSuppliers(sp.data ?? []); setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
   }
@@ -74,7 +74,7 @@ function PaymentsPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this payment?")) return;
-    const { error } = await supabase.from("payments").delete().eq("id", id);
+    const { error } = await supabase.rpc("soft_delete", { _table: "payments", _id: id });
     if (error) return toast.error(error.message);
     toast.success("Deleted"); load();
   }

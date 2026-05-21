@@ -32,7 +32,7 @@ export function PartyPage({
   const [form, setForm] = useState({ name: "", phone: "", email: "", opening_balance: "0", notes: "" });
 
   async function load() {
-    const { data, error } = await supabase.from(tbl).select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from(tbl).select("*").eq("is_deleted", false).order("created_at", { ascending: false });
     if (error) return toast.error(error.message);
     setRows(data ?? []);
     const bs: Record<string, number> = {};
@@ -75,7 +75,7 @@ export function PartyPage({
 
   async function remove(id: string) {
     if (!confirm("Delete this entry? This cannot be undone.")) return;
-    const { error } = await supabase.from(tbl).delete().eq("id", id);
+    const { error } = await supabase.rpc("soft_delete", { _table: tbl, _id: id });
     if (error) return toast.error(error.message);
     toast.success("Deleted"); load();
   }

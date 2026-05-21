@@ -7,12 +7,12 @@
 // matching what Supabase returns. You can ALTER them later for stricter types.
 
 export const TABLES = [
-  { name: "customers",         watermark: "created_at" },
-  { name: "suppliers",         watermark: "created_at" },
-  { name: "sub_agents",        watermark: "created_at" },
-  { name: "tickets",           watermark: "created_at" },
-  { name: "ticket_services",   watermark: "created_at" },
-  { name: "payments",          watermark: "created_at" },
-  { name: "refunds",           watermark: "created_at" },
+  { name: "customers",         watermark: "updated_at" },
+  { name: "suppliers",         watermark: "updated_at" },
+  { name: "sub_agents",        watermark: "updated_at" },
+  { name: "tickets",           watermark: "updated_at" },
+  { name: "ticket_services",   watermark: "updated_at" },
+  { name: "payments",          watermark: "updated_at" },
+  { name: "refunds",           watermark: "updated_at" },
   { name: "agency_profile",    watermark: "updated_at" },
 ];

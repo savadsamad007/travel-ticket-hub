@@ -56,6 +56,7 @@ function StaffPage() {
       .from("user_agency")
       .select("user_id, role, full_name, email, permissions, created_at, created_by")
       .eq("agency_owner", agencyOwner)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: true });
     if (error) return toast.error(error.message);
     const list = data ?? [];
@@ -112,7 +113,7 @@ function StaffPage() {
   async function removeStaff(uid: string) {
     if (uid === user?.id) return toast.error("You can't remove yourself");
     if (!confirm("Revoke this staff member's access?")) return;
-    const { error } = await supabase.from("user_agency").delete().eq("user_id", uid);
+    const { error } = await supabase.rpc("soft_delete", { _table: "user_agency", _id: uid });
     if (error) return toast.error(error.message);
     toast.success("Removed"); load();
   }

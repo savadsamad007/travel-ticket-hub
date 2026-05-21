@@ -57,7 +57,7 @@ function ownerId() {
 
 async function sbList(table, opts = {}) {
   return withSessionRetry(async () => {
-    let q = sb.from(table).select("*").eq("owner_id", ownerId());
+    let q = sb.from(table).select("*").eq("owner_id", ownerId()).eq("is_deleted", false);
     if (opts.order) q = q.order(opts.order, { ascending: false });
     else q = q.order("created_at", { ascending: false });
     const { data, error } = await q;
@@ -81,9 +81,9 @@ async function sbUpsert(table, row) {
 
 async function sbDelete(table, id) {
   return withSessionRetry(async () => {
-    const { error } = await sb.from(table).delete().eq("id", id);
+    const { error } = await sb.rpc("soft_delete", { _table: table, _id: id });
     if (error) throw new Error(error.message);
-    mirrorToSheet(table, { id }, "delete");
+    mirrorToSheet(table, { id, is_deleted: true, deleted_at: new Date().toISOString() }, "upsert");
     return { id };
   });
 }
@@ -108,7 +108,7 @@ const ACTIONS = {
   "tickets.upsert":   (d) => sbUpsert("tickets", d),
   "tickets.delete":   (d) => sbDelete("tickets", d.id),
   "tickets.services": async (d) => {
-    const { data, error } = await sb.from("ticket_services").select("*").eq("ticket_id", d.ticket_id);
+    const { data, error } = await sb.from("ticket_services").select("*").eq("ticket_id", d.ticket_id).eq("is_deleted", false);
     if (error) throw new Error(error.message);
     return data || [];
   },
@@ -175,6 +175,7 @@ const ACTIONS = {
       .from("user_agency")
       .select("user_id, full_name, role, permissions, created_at")
       .eq("agency_owner", ownerId())
+      .eq("is_deleted", false)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     return (data || []).map((r) => ({
@@ -207,9 +208,9 @@ const ACTIONS = {
     return { id: d.id };
   },
   "staff.delete": async (d) => {
-    const { error } = await sb.from("user_agency").delete().eq("user_id", d.id).eq("agency_owner", ownerId());
+    const { error } = await sb.rpc("soft_delete", { _table: "user_agency", _id: d.id });
     if (error) throw new Error(error.message);
-    mirrorToSheet("user_agency", { user_id: d.id }, "delete");
+    mirrorToSheet("user_agency", { user_id: d.id, is_deleted: true, deleted_at: new Date().toISOString() }, "upsert");
     return { id: d.id };
   },
 

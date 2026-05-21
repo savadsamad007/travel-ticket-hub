@@ -14,17 +14,17 @@
 const SHEET_ID = '1CcpkHYyL3WWgu4X2p2WUTYjBcz1hNqJjq7CrF-dsDNg';
 
 const HEADERS = {
-  users: ['id','email','password','name','role','permissions','token','token_exp','created_at'],
+  users: ['id','email','password','name','role','permissions','token','token_exp','created_at','is_deleted','deleted_at','deleted_by','updated_at'],
   agency_profile: ['id','agency_name','phone','email','address','vat_no','logo_url','report_email'],
-  customers: ['id','name','phone','email','address','created_at'],
-  suppliers: ['id','name','phone','email','address','opening_balance','created_at'],
-  sub_agents: ['id','name','phone','email','address','opening_balance','created_at'],
+  customers: ['id','name','phone','email','address','created_at','is_deleted','deleted_at','deleted_by','updated_at'],
+  suppliers: ['id','name','phone','email','address','opening_balance','created_at','is_deleted','deleted_at','deleted_by','updated_at'],
+  sub_agents: ['id','name','phone','email','address','opening_balance','created_at','is_deleted','deleted_at','deleted_by','updated_at'],
   tickets: ['id','ticket_no','passenger_name','airline','route','travel_date','pnr',
-            'supplier_id','buyer_type','buyer_id','cost_price','sale_price','notes','created_at','created_by'],
-  ticket_services: ['id','ticket_id','service','cost_price','sale_price','created_at'],
+            'supplier_id','buyer_type','buyer_id','cost_price','sale_price','notes','created_at','created_by','status','is_deleted','deleted_at','deleted_by','updated_at'],
+  ticket_services: ['id','ticket_id','service','cost_price','sale_price','created_at','is_deleted','deleted_at','deleted_by','updated_at'],
   refunds: ['id','ticket_id','customer_refund_amount','supplier_refund_amount',
-            'supplier_retention_amount','reason','date','created_at'],
-  payments: ['id','date','direction','party_type','party_id','amount','method','reference','notes','created_at','created_by']
+            'supplier_retention_amount','reason','date','created_at','is_deleted','deleted_at','deleted_by','updated_at'],
+  payments: ['id','date','direction','party_type','party_id','amount','method','reference','notes','created_at','created_by','is_deleted','deleted_at','deleted_by','updated_at']
 };
 
 /* ========== Router ========== */
@@ -114,8 +114,10 @@ function rows_(name) {
   const headers = data.shift() || HEADERS[name];
   return data.map(r => { const o={}; headers.forEach((h,i)=>o[h]=r[i]); return o; });
 }
-function listAll_(name)             { return rows_(name); }
-function listWhere_(name, where)    { return rows_(name).filter(r => Object.keys(where).every(k => String(r[k])===String(where[k]))); }
+function isDeleted_(r)              { return String(r.is_deleted || '').toLowerCase() === 'true'; }
+function activeRows_(name)          { return rows_(name).filter(r => !isDeleted_(r)); }
+function listAll_(name)             { return activeRows_(name); }
+function listWhere_(name, where)    { return activeRows_(name).filter(r => Object.keys(where).every(k => String(r[k])===String(where[k]))); }
 function getOne_(name, where)       { return listWhere_(name, where)[0]; }
 
 function upsert_(name, obj) {
@@ -144,7 +146,16 @@ function upsert_(name, obj) {
 function del_(name, id) {
   const s = sheet_(name);
   const data = s.getDataRange().getValues();
-  for (let i=1; i<data.length; i++) if (String(data[i][0]) === String(id)) { s.deleteRow(i+1); return { id }; }
+  const headers = HEADERS[name];
+  const now = new Date().toISOString();
+  for (let i=1; i<data.length; i++) if (String(data[i][0]) === String(id)) {
+    const current = {}; headers.forEach((h,j)=>current[h]=data[i][j]);
+    const patch = { id, is_deleted:'true', deleted_at:now, updated_at:now };
+    if (name === 'tickets') patch.status = 'deleted';
+    const row = headers.map((h,j) => patch[h] !== undefined ? patch[h] : data[i][j]);
+    s.getRange(i+1, 1, 1, headers.length).setValues([row]);
+    return patch;
+  }
   return { id };
 }
 function safeJson_(v){ try { return v ? JSON.parse(v) : {}; } catch(e){ return {}; } }
@@ -265,10 +276,9 @@ function mirror_(d) {
   const idCol = headers.indexOf('id');
   const data = s.getDataRange().getValues();
   if (op === 'delete') {
-    if (idCol >= 0 && row.id) {
-      for (let i = 1; i < data.length; i++) if (String(data[i][idCol]) === String(row.id)) { s.deleteRow(i + 1); break; }
-    }
-    return { ok: true };
+    row.is_deleted = row.is_deleted || true;
+    row.deleted_at = row.deleted_at || new Date().toISOString();
+    row.updated_at = row.updated_at || row.deleted_at;
   }
   // upsert
   if (idCol >= 0 && row.id) {

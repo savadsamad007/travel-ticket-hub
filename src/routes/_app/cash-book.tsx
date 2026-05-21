@@ -32,13 +32,14 @@ function CashBookPage() {
         .from("payments")
         .select("*")
         .eq("method", "cash")
+        .eq("is_deleted", false)
         .order("created_at", { ascending: false });
       setRows(py ?? []);
 
       const [sp, cu, ag] = await Promise.all([
-        supabase.from("suppliers").select("id,name"),
-        supabase.from("customers").select("id,name"),
-        supabase.from("sub_agents").select("id,name"),
+        supabase.from("suppliers").select("id,name").eq("is_deleted", false),
+        supabase.from("customers").select("id,name").eq("is_deleted", false),
+        supabase.from("sub_agents").select("id,name").eq("is_deleted", false),
       ]);
       const m: Record<string, string> = {};
       for (const x of sp.data ?? []) m[`supplier:${x.id}`] = x.name;

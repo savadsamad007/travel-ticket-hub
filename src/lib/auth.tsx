@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from("user_agency")
       .select("agency_owner, role, permissions")
       .eq("user_id", uid)
+      .eq("is_deleted", false)
       .maybeSingle();
     if (ua) {
       setRole(ua.role as AppRole);
