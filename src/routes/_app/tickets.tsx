@@ -393,6 +393,18 @@ function TicketsPage() {
         </Dialog>
       </PageHeader>
 
+      <Card className="shadow-soft p-3 mb-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search ticket no, passenger, PNR, route, airline, or buyer name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </Card>
+
       <Card className="shadow-soft overflow-hidden">
         <div className="overflow-x-auto">
         <Table>
