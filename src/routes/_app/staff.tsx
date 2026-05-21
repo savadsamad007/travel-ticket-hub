@@ -189,6 +189,7 @@ function StaffPage() {
                     </div>
                   </TableCell>
                   <TableCell><span className={`text-xs px-2 py-1 rounded-full ${r.role === "admin" || r.role === "super_admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{r.role}</span></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.role === "salesman" ? (r.created_by_name || "—") : "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-xs truncate">{permList}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right space-x-1">
