@@ -54,7 +54,7 @@ function StaffPage() {
     if (!agencyOwner) return;
     const { data, error } = await supabase
       .from("user_agency")
-      .select("user_id, role, full_name, permissions, created_at, created_by")
+      .select("user_id, role, full_name, email, permissions, created_at, created_by")
       .eq("agency_owner", agencyOwner)
       .order("created_at", { ascending: true });
     if (error) return toast.error(error.message);
