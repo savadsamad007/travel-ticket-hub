@@ -18,30 +18,67 @@ language sql stable security definer set search_path = public as $$
   from public.user_agency where user_id = auth.uid()
 $$;
 
+alter table public.user_agency
+  add column if not exists permissions jsonb not null default '{}'::jsonb;
+
+create table if not exists public.staff_invites (
+  token uuid primary key,
+  agency_owner uuid not null references auth.users(id) on delete cascade,
+  email text not null,
+  role public.app_role not null default 'salesman',
+  full_name text,
+  permissions jsonb not null default '{}'::jsonb,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  used_by uuid references auth.users(id) on delete set null,
+  used_at timestamptz,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '1 day')
+);
+alter table public.staff_invites enable row level security;
+
+drop policy if exists "staff_invites_admin_insert" on public.staff_invites;
+create policy "staff_invites_admin_insert" on public.staff_invites for insert
+  to authenticated
+  with check (agency_owner = public.my_agency_owner() and created_by = auth.uid() and public.is_admin_like());
+
+drop policy if exists "staff_invites_admin_select" on public.staff_invites;
+create policy "staff_invites_admin_select" on public.staff_invites for select
+  to authenticated
+  using (agency_owner = public.my_agency_owner() and public.is_admin_like());
+
 create or replace function public.handle_new_user_agency()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
-  requested_owner uuid := nullif(new.raw_user_meta_data->>'agency_owner', '')::uuid;
-  requested_role text := coalesce(new.raw_user_meta_data->>'staff_role', 'admin');
-  requested_permissions jsonb := coalesce((new.raw_user_meta_data->'permissions')::jsonb, '{}'::jsonb);
+  requested_invite uuid := nullif(new.raw_user_meta_data->>'staff_invite_token', '')::uuid;
+  invite_row public.staff_invites%rowtype;
 begin
-  if requested_owner is not null
-     and requested_owner <> new.id
+  if requested_invite is not null then
+    select * into invite_row
+    from public.staff_invites
+    where token = requested_invite
+      and used_at is null
+      and expires_at > now()
+      and lower(email) = lower(new.email)
+    for update;
+  end if;
+
+  if invite_row.token is not null
      and exists (
        select 1 from public.user_agency
-       where user_id = requested_owner
-         and agency_owner = requested_owner
+       where user_id = invite_row.created_by
+         and agency_owner = invite_row.agency_owner
          and role::text in ('admin','super_admin')
      ) then
     insert into public.user_agency (user_id, agency_owner, role, full_name, permissions)
     values (
       new.id,
-      requested_owner,
-      case when requested_role = 'admin' then 'admin'::public.app_role else 'salesman'::public.app_role end,
-      coalesce(new.raw_user_meta_data->>'full_name', new.email),
-      requested_permissions
+      invite_row.agency_owner,
+      invite_row.role,
+      coalesce(invite_row.full_name, new.raw_user_meta_data->>'full_name', new.email),
+      invite_row.permissions
     )
     on conflict (user_id) do nothing;
+    update public.staff_invites set used_by = new.id, used_at = now() where token = invite_row.token;
   else
     insert into public.user_agency (user_id, agency_owner, role, full_name)
     values (new.id, new.id, 'admin', coalesce(new.raw_user_meta_data->>'full_name', new.email))
