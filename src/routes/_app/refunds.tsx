@@ -100,10 +100,29 @@ function RefundsPage() {
             <DialogHeader><DialogTitle>Record refund</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
               <div className="space-y-2">
-                <Label>Ticket</Label>
+                <Label>Find ticket</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Ticket no, passenger, PNR, route, customer name or phone…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
                 <Select value={form.ticket_id} onValueChange={(v) => setForm({ ...form, ticket_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Choose ticket…" /></SelectTrigger>
-                  <SelectContent>{tickets.map((t) => <SelectItem key={t.id} value={t.id}>{t.passenger_name} — {t.route ?? ""} ({fmt(t.sale_price)})</SelectItem>)}</SelectContent>
+                  <SelectTrigger><SelectValue placeholder={`Choose ticket… (${filteredTickets.length} match${filteredTickets.length === 1 ? "" : "es"})`} /></SelectTrigger>
+                  <SelectContent>
+                    {filteredTickets.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">No matches.</div>}
+                    {filteredTickets.map((t) => {
+                      const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
+                      return (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.ticket_no ? `#${t.ticket_no} · ` : ""}{t.passenger_name} — {t.route ?? "—"} · {buyer?.name ?? "—"} ({fmt(t.sale_price)})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
                 </Select>
                 {selected && (
                   <div className="text-xs text-muted-foreground">Cost {fmt(selected.cost_price)} · Sale {fmt(selected.sale_price)}</div>
