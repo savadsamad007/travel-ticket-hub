@@ -1,7 +1,7 @@
 import { RequirePerm } from "@/components/skybird/require-perm";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, Search } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
 import { getOwnerId } from "@/lib/data";
 import { useIsAdmin } from "@/lib/auth";
@@ -24,20 +24,37 @@ function RefundsPage() {
   const isAdmin = useIsAdmin();
   const [rows, setRows] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     ticket_id: "", customer_refund_amount: "0",
     supplier_retention_amount: "0", supplier_refund_amount: "0", notes: "",
   });
 
   async function load() {
-    const [rf, tk] = await Promise.all([
+    const [rf, tk, cu, ag] = await Promise.all([
       supabase.from("refunds").select("*").order("created_at", { ascending: false }),
-      supabase.from("tickets").select("id, passenger_name, route, sale_price, cost_price, status"),
+      supabase.from("tickets").select("id, ticket_no, pnr, passenger_name, route, sale_price, cost_price, status, buyer_type, buyer_id"),
+      supabase.from("customers").select("id, name, phone"),
+      supabase.from("sub_agents").select("id, name, phone"),
     ]);
     setRows(rf.data ?? []); setTickets(tk.data ?? []);
+    setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
   }
   useEffect(() => { load(); }, []);
+
+  const filteredTickets = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tickets;
+    return tickets.filter((t) => {
+      const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
+      const hay = [t.ticket_no, t.passenger_name, t.pnr, t.route, buyer?.name, buyer?.phone]
+        .filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tickets, customers, agents, search]);
 
   const selected = tickets.find((t) => t.id === form.ticket_id);
 
