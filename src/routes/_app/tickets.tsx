@@ -1,7 +1,7 @@
 import { RequirePerm } from "@/components/skybird/require-perm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Receipt, X, FileText, MessageCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, X, FileText, MessageCircle, Search } from "lucide-react";
 import { supabase, fmt } from "@/lib/supabase";
 import { getOwnerId } from "@/lib/data";
 import { useAuth, useIsAdmin } from "@/lib/auth";
@@ -33,6 +33,7 @@ type Form = {
   is_service_only: boolean;
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string;
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
+  walking_customer: boolean; walking_name: string; walking_phone: string;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
 };
@@ -40,6 +41,7 @@ const emptyForm: Form = {
   is_service_only: false,
   ticket_no: "", pnr: "", passenger_name: "", route: "", travel_date: "", airline: "",
   supplier_id: "", buyer_type: "customer", buyer_id: "",
+  walking_customer: false, walking_name: "", walking_phone: "",
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
 };
 
@@ -64,6 +66,7 @@ function TicketsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
+  const [search, setSearch] = useState("");
 
   // standalone service modal (on existing tickets)
   const [svcOpen, setSvcOpen] = useState(false);
@@ -73,7 +76,7 @@ function TicketsPage() {
   async function load() {
     const [tk, sp, cu, ag] = await Promise.all([
       supabase.from("tickets").select("*").order("created_at", { ascending: false }),
-      supabase.from("suppliers").select("id, name"),
+      supabase.from("suppliers").select("id, name, kind").order("kind", { ascending: false }),
       supabase.from("customers").select("id, name"),
       supabase.from("sub_agents").select("id, name"),
     ]);
@@ -90,6 +93,17 @@ function TicketsPage() {
 
   const buyerOptions = form.buyer_type === "customer" ? customers : agents;
   const profit = useMemo(() => Number(form.sale_price || 0) - Number(form.cost_price || 0), [form.cost_price, form.sale_price]);
+
+  const filteredTickets = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tickets;
+    return tickets.filter((t) => {
+      const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
+      const hay = [t.ticket_no, t.passenger_name, t.pnr, t.route, t.airline, buyer?.name, buyer?.phone]
+        .filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tickets, search, customers, agents]);
 
   function nameOf(arr: any[], id: string | null) { return arr.find((x) => x.id === id)?.name ?? "—"; }
   function buyerName(t: any) { return nameOf(t.buyer_type === "customer" ? customers : agents, t.buyer_id); }
@@ -110,15 +124,37 @@ function TicketsPage() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.is_service_only && !form.supplier_id) return toast.error("Pick a supplier (or toggle 'Service-only')");
-    if (!form.buyer_id) return toast.error("Pick a buyer");
+    if (!form.walking_customer && !form.buyer_id) return toast.error("Pick a buyer (or toggle Walking customer)");
+    if (form.walking_customer && !form.walking_name.trim()) return toast.error("Enter walking customer name");
     try {
       const owner_id = await getOwnerId();
+
+      // Walking customer → upsert into customers, then use that id as buyer
+      let buyer_id = form.buyer_id;
+      let buyer_type = form.buyer_type;
+      if (form.walking_customer) {
+        const { data: newCust, error: cErr } = await supabase
+          .from("customers")
+          .insert({
+            owner_id,
+            name: form.walking_name.trim(),
+            phone: form.walking_phone || null,
+            is_walk_in: true,
+          })
+          .select("id, name, phone")
+          .single();
+        if (cErr) throw cErr;
+        buyer_id = newCust.id;
+        buyer_type = "customer";
+        setCustomers((cs) => [newCust as any, ...cs]);
+      }
+
       const payload: any = {
         ticket_no: form.ticket_no || null, pnr: form.pnr || null,
         passenger_name: form.passenger_name.trim(), route: form.route || null,
         travel_date: form.travel_date || null, airline: form.airline || null,
-        supplier_id: form.is_service_only ? null : form.supplier_id,
-        buyer_type: form.buyer_type, buyer_id: form.buyer_id,
+        supplier_id: form.is_service_only && !form.supplier_id ? null : (form.supplier_id || null),
+        buyer_type, buyer_id,
         cost_price: form.is_service_only ? 0 : Number(form.cost_price || 0),
         sale_price: form.is_service_only ? 0 : Number(form.sale_price || 0),
         status: form.status, notes: form.notes || null,
@@ -135,6 +171,18 @@ function TicketsPage() {
         if (error) throw error;
         ticketId = data.id;
         toast.success("Ticket created");
+
+        // Virtual supplier (Cash / Bank) → auto-record a payment-out so cash book reflects it
+        const sup = suppliers.find((s) => s.id === payload.supplier_id);
+        if (sup && (sup.kind === "cash" || sup.kind === "bank") && Number(payload.cost_price) > 0) {
+          const { error: payErr } = await supabase.from("payments").insert({
+            owner_id, party_type: "supplier", party_id: sup.id,
+            direction: "out", amount: Number(payload.cost_price),
+            method: sup.kind, reference: `Ticket ${form.ticket_no || ticketId.slice(0, 8)}`,
+            ticket_id: ticketId, notes: "Auto: ticket bought from local market",
+          });
+          if (payErr) toast.error("Ticket saved, but cash entry failed: " + payErr.message);
+        }
       }
       // insert new services from form (only on create — edit keeps existing services unchanged)
       if (!editing && form.services.length) {
@@ -163,6 +211,7 @@ function TicketsPage() {
       ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "", passenger_name: t.passenger_name,
       route: t.route ?? "", travel_date: t.travel_date ?? "", airline: t.airline ?? "",
       supplier_id: t.supplier_id ?? "", buyer_type: t.buyer_type, buyer_id: t.buyer_id,
+      walking_customer: false, walking_name: "", walking_phone: "",
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
       status: t.status, notes: t.notes ?? "", services: [],
     });
@@ -244,39 +293,61 @@ function TicketsPage() {
                   <AirlineAutocomplete value={form.airline} onChange={(v) => setForm({ ...form, airline: v })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Supplier {form.is_service_only ? "" : "*"}</Label>
-                  <Select disabled={form.is_service_only} value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
-                    <SelectTrigger><SelectValue placeholder={form.is_service_only ? "— not needed —" : "Choose…"} /></SelectTrigger>
-                    <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                  <Label>Supplier {form.is_service_only ? "(optional)" : "*"}</Label>
+                  <Select value={form.supplier_id} onValueChange={(v) => setForm({ ...form, supplier_id: v })}>
+                    <SelectTrigger><SelectValue placeholder={form.is_service_only ? "— optional —" : "Choose…"} /></SelectTrigger>
+                    <SelectContent>{suppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}{s.kind && s.kind !== "supplier" ? " (virtual)" : ""}
+                      </SelectItem>
+                    ))}</SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">Pick "💵 Cash in Hand" or "🏦 Bank" for tickets you bought from the local market (no invoice). Cost will auto-deduct from that account.</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Buyer type</Label>
-                  <Select value={form.buyer_type} onValueChange={(v: any) => setForm({ ...form, buyer_type: v, buyer_id: "" })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="customer">Customer</SelectItem>
-                      <SelectItem value="sub_agent">Sub-agent</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+              <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium">Walking customer (no account)</div>
+                  <div className="text-xs text-muted-foreground">Just enter their name + phone. Auto-saved as a walk-in customer.</div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Buyer *</Label>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Select value={form.buyer_id} onValueChange={(v) => setForm({ ...form, buyer_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
-                        <SelectContent>{buyerOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                <Switch checked={form.walking_customer}
+                  onCheckedChange={(v) => setForm({ ...form, walking_customer: v, buyer_id: v ? "" : form.buyer_id })} />
+              </div>
+
+              {form.walking_customer ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2"><Label>Walking customer name *</Label><Input required maxLength={120} value={form.walking_name} onChange={(e) => setForm({ ...form, walking_name: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Phone</Label><Input maxLength={40} value={form.walking_phone} onChange={(e) => setForm({ ...form, walking_phone: e.target.value })} /></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Buyer type</Label>
+                    <Select value={form.buyer_type} onValueChange={(v: any) => setForm({ ...form, buyer_type: v, buyer_id: "" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="customer">Customer</SelectItem>
+                        <SelectItem value="sub_agent">Sub-agent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Buyer *</Label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Select value={form.buyer_id} onValueChange={(v) => setForm({ ...form, buyer_id: v })}>
+                          <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
+                          <SelectContent>{buyerOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      {form.buyer_type === "customer" && (
+                        <QuickAddCustomer onCreated={(c) => { setCustomers((cs) => [c, ...cs]); setForm((f) => ({ ...f, buyer_id: c.id })); }} />
+                      )}
                     </div>
-                    {form.buyer_type === "customer" && (
-                      <QuickAddCustomer onCreated={(c) => { setCustomers((cs) => [c, ...cs]); setForm((f) => ({ ...f, buyer_id: c.id })); }} />
-                    )}
                   </div>
                 </div>
-              </div>
+              )}
               {!form.is_service_only && (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2"><Label>Cost (from supplier)</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} /></div>
@@ -333,6 +404,18 @@ function TicketsPage() {
         </Dialog>
       </PageHeader>
 
+      <Card className="shadow-soft p-3 mb-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search ticket no, passenger, PNR, route, airline, or buyer name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </Card>
+
       <Card className="shadow-soft overflow-hidden">
         <div className="overflow-x-auto">
         <Table>
@@ -349,8 +432,8 @@ function TicketsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tickets.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8 text-muted-foreground">No tickets yet.</TableCell></TableRow>}
-            {tickets.map((t) => {
+            {filteredTickets.length === 0 && <TableRow><TableCell colSpan={isAdmin ? 8 : 6} className="text-center py-8 text-muted-foreground">{tickets.length === 0 ? "No tickets yet." : "No matches."}</TableCell></TableRow>}
+            {filteredTickets.map((t) => {
               const totalCost = Number(t.cost_price) + svcTotal(t.id, "cost_price");
               const totalSale = Number(t.sale_price) + svcTotal(t.id, "sale_price");
               const p = totalSale - totalCost;

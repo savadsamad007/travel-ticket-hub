@@ -1,10 +1,13 @@
 -- ============================================================
--- SKYBIRD — FIX RLS FOR super_admin role
--- Run ONCE in Supabase → SQL Editor.
--- Fixes "new row violates row-level security policy" when a
--- super_admin tries to create staff, edit agency profile, etc.
+-- SKYBIRD v4 — RUN ONCE in Supabase → SQL Editor → New query.
+-- Fixes:
+--   1) RLS so super_admin can manage staff / agency / data.
+--   2) Adds "Cash in Hand" + "Bank" as VIRTUAL SUPPLIERS so you
+--      can record tickets bought from local market with no invoice.
+-- Safe / idempotent.
 -- ============================================================
 
+-- ---------- 1) super_admin RLS ----------
 create or replace function public.is_admin_like() returns boolean
 language sql stable security definer set search_path = public as $$
   select role::text in ('admin','super_admin')
@@ -44,5 +47,55 @@ begin
          using (owner_id = public.my_agency_owner() and public.is_admin_like())', t);
   end loop;
 end$$;
+
+-- ---------- 2) Virtual suppliers (Cash / Bank) ----------
+alter table public.suppliers
+  add column if not exists kind text not null default 'supplier';
+
+do $$ begin
+  alter table public.suppliers
+    add constraint suppliers_kind_chk check (kind in ('supplier','cash','bank'));
+exception when duplicate_object then null; end $$;
+
+-- Auto-seed one Cash + one Bank "supplier" for every existing agency
+insert into public.suppliers (owner_id, name, kind)
+select s.agency_owner, '💵 Cash in Hand', 'cash'
+  from (select distinct agency_owner from public.user_agency) s
+ where not exists (
+   select 1 from public.suppliers
+    where owner_id = s.agency_owner and kind = 'cash'
+ );
+
+insert into public.suppliers (owner_id, name, kind)
+select s.agency_owner, '🏦 Bank', 'bank'
+  from (select distinct agency_owner from public.user_agency) s
+ where not exists (
+   select 1 from public.suppliers
+    where owner_id = s.agency_owner and kind = 'bank'
+ );
+
+-- New-agency trigger: seed virtual suppliers automatically
+create or replace function public.seed_virtual_suppliers()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.role::text in ('admin','super_admin') and new.user_id = new.agency_owner then
+    insert into public.suppliers (owner_id, name, kind)
+    values (new.agency_owner, '💵 Cash in Hand', 'cash')
+    on conflict do nothing;
+    insert into public.suppliers (owner_id, name, kind)
+    values (new.agency_owner, '🏦 Bank', 'bank')
+    on conflict do nothing;
+  end if;
+  return new;
+end$$;
+
+drop trigger if exists on_user_agency_seed_virtual on public.user_agency;
+create trigger on_user_agency_seed_virtual
+  after insert on public.user_agency
+  for each row execute function public.seed_virtual_suppliers();
+
+-- ---------- 3) Walk-in customer flag ----------
+alter table public.customers
+  add column if not exists is_walk_in boolean not null default false;
 
 -- ============== DONE ==============
