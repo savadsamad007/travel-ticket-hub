@@ -76,10 +76,11 @@ function TicketsPage() {
   async function load() {
     const [tk, sp, cu, ag] = await Promise.all([
       supabase.from("tickets").select("*").order("created_at", { ascending: false }),
-      supabase.from("suppliers").select("id, name, kind").order("kind", { ascending: false }),
+      supabase.from("suppliers").select("*").order("name"),
       supabase.from("customers").select("id, name"),
       supabase.from("sub_agents").select("id, name"),
     ]);
+    if (sp.error) toast.error("Suppliers: " + sp.error.message);
     setTickets(tk.data ?? []);
     setSuppliers(sp.data ?? []); setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
     if ((tk.data ?? []).length) {
