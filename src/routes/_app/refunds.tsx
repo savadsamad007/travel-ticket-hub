@@ -36,7 +36,7 @@ function RefundsPage() {
   async function load() {
     const [rf, tk, cu, ag] = await Promise.all([
       supabase.from("refunds").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
-      supabase.from("tickets").select("id, ticket_no, pnr, passenger_name, route, sale_price, cost_price, status, buyer_type, buyer_id").eq("is_deleted", false).not("status", "in", "(refunded,cancelled,deleted)"),
+      supabase.from("tickets").select("id, ticket_no, pnr, passenger_name, route, sale_price, cost_price, status, buyer_type, buyer_id").eq("is_deleted", false),
       supabase.from("customers").select("id, name, phone").eq("is_deleted", false),
       supabase.from("sub_agents").select("id, name, phone").eq("is_deleted", false),
     ]);
