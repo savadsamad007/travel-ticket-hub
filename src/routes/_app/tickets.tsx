@@ -31,15 +31,16 @@ type SvcRow = { service_type: string; description: string; cost_price: string; s
 
 type Form = {
   is_service_only: boolean;
-  ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string;
+  ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string; booking_date: string;
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
   walking_customer: boolean; walking_name: string; walking_phone: string;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
 };
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 const emptyForm: Form = {
   is_service_only: false,
-  ticket_no: "", pnr: "", passenger_name: "", route: "", travel_date: "", airline: "",
+  ticket_no: "", pnr: "", passenger_name: "", route: "", travel_date: "", booking_date: todayISO(), airline: "",
   supplier_id: "", buyer_type: "customer", buyer_id: "",
   walking_customer: false, walking_name: "", walking_phone: "",
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
@@ -153,7 +154,9 @@ function TicketsPage() {
       const payload: any = {
         ticket_no: form.ticket_no || null, pnr: form.pnr || null,
         passenger_name: form.passenger_name.trim(), route: form.route || null,
-        travel_date: form.travel_date || null, airline: form.airline || null,
+        travel_date: form.travel_date || null,
+        booking_date: form.booking_date || todayISO(),
+        airline: form.airline || null,
         supplier_id: form.supplier_id,
         buyer_type, buyer_id,
         cost_price: form.is_service_only ? 0 : Number(form.cost_price || 0),
@@ -210,7 +213,9 @@ function TicketsPage() {
     setForm({
       is_service_only: !!t.is_service_only,
       ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "", passenger_name: t.passenger_name,
-      route: t.route ?? "", travel_date: t.travel_date ?? "", airline: t.airline ?? "",
+      route: t.route ?? "", travel_date: t.travel_date ?? "",
+      booking_date: t.booking_date ?? todayISO(),
+      airline: t.airline ?? "",
       supplier_id: t.supplier_id ?? "", buyer_type: t.buyer_type, buyer_id: t.buyer_id,
       walking_customer: false, walking_name: "", walking_phone: "",
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
@@ -283,7 +288,7 @@ function TicketsPage() {
                 <div className="space-y-2"><Label>PNR</Label><Input value={form.pnr} maxLength={20} onChange={(e) => setForm({ ...form, pnr: e.target.value })} /></div>
               </div>
               <div className="space-y-2"><Label>Passenger name *</Label><Input required maxLength={120} value={form.passenger_name} onChange={(e) => setForm({ ...form, passenger_name: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label>Route <span className="text-xs text-muted-foreground">(auto-/ every 3 letters)</span></Label>
                   <Input
@@ -293,6 +298,7 @@ function TicketsPage() {
                     onChange={(e) => setForm({ ...form, route: formatRoute(e.target.value) })}
                   />
                 </div>
+                <div className="space-y-2"><Label>Booking date</Label><Input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Travel date</Label><Input type="date" value={form.travel_date} onChange={(e) => setForm({ ...form, travel_date: e.target.value })} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
