@@ -459,7 +459,7 @@ function TicketsPage() {
                       {t.passenger_name}
                       {t.is_service_only && <Badge variant="outline" className="text-[10px]">Service-only</Badge>}
                     </div>
-                    <div className="text-xs text-muted-foreground">{t.route ?? "—"} {t.travel_date ? `· ${t.travel_date}` : ""} {t.airline ? `· ${t.airline}` : ""}</div>
+                    <div className="text-xs text-muted-foreground">{t.route ?? "—"} {t.travel_date ? `· Travel ${t.travel_date}` : ""} {t.booking_date ? `· Booked ${t.booking_date}` : ""} {t.airline ? `· ${t.airline}` : ""}</div>
                     {(services[t.id] ?? []).length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {services[t.id].map((s) => <Badge key={s.id} variant="outline" className="text-xs">+{s.service_type}</Badge>)}
