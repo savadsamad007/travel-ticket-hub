@@ -138,16 +138,17 @@ function StatementsPage() {
 
   function exportPDF() {
     const rows: (string|number)[][] = [];
-    if (opening) rows.push([new Date().toLocaleDateString(), "Opening balance", "", 0, 0]);
-    let run = opening;
+    if (openingAdjusted) rows.push([new Date().toLocaleDateString(), "Opening balance", "", 0, 0]);
+    let run = openingAdjusted;
     for (const e of entries) {
       run = run + e.debit - e.credit;
       rows.push([new Date(e.date).toLocaleDateString(), e.description, e.ref, e.debit, e.credit]);
     }
+    const dateRange = (fromDate || toDate) ? ` | Range: ${fromDate || "…"} → ${toDate || "…"}` : "";
     buildLedgerPDF({
       title: `Statement — ${partyName}`,
       subtitle: `${partyType.replace("_", "-")} statement`,
-      filters: `Opening: ${fmt(opening)}`,
+      filters: `Opening: ${fmt(openingAdjusted)}${dateRange}`,
       columns: ["Date", "Description", "Ref", "Debit (SAR)", "Credit (SAR)"],
       rows,
       totals: [
@@ -158,7 +159,7 @@ function StatementsPage() {
     });
   }
 
-  let running = opening;
+  let running = openingAdjusted;
 
   return (
     <div>
