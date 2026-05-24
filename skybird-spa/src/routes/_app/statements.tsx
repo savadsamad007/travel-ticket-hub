@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildLedgerPDF } from "@/lib/pdf";
 
@@ -28,8 +29,10 @@ function StatementsPage() {
   const [partyType, setPartyType] = useState<PartyType>("supplier");
   const [partyId, setPartyId] = useState<string>("");
   const [parties, setParties] = useState<any[]>([]);
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [allEntries, setAllEntries] = useState<Entry[]>([]);
   const [opening, setOpening] = useState(0);
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
 
   useEffect(() => {
     supabase.from(PARTY_TABLES[partyType]).select("id, name").eq("is_deleted", false).order("name").then(({ data }) => {
@@ -38,7 +41,7 @@ function StatementsPage() {
   }, [partyType]);
 
   useEffect(() => {
-    if (!partyId) { setEntries([]); setOpening(0); return; }
+    if (!partyId) { setAllEntries([]); setOpening(0); return; }
     (async () => {
       const list: Entry[] = [];
       // opening balance (suppliers/sub_agents only)
@@ -105,15 +108,28 @@ function StatementsPage() {
       }
 
       list.sort((a, b) => a.date.localeCompare(b.date));
-      setEntries(list);
+      setAllEntries(list);
     })();
   }, [partyId, partyType]);
+
+  const { entries, openingAdjusted } = useMemo(() => {
+    const fromTs = fromDate ? new Date(fromDate + "T00:00:00").getTime() : -Infinity;
+    const toTs = toDate ? new Date(toDate + "T23:59:59").getTime() : Infinity;
+    let openAdj = opening;
+    const filtered: Entry[] = [];
+    for (const e of allEntries) {
+      const t = new Date(e.date).getTime();
+      if (t < fromTs) openAdj += e.debit - e.credit;
+      else if (t <= toTs) filtered.push(e);
+    }
+    return { entries: filtered, openingAdjusted: openAdj };
+  }, [allEntries, opening, fromDate, toDate]);
 
   const totals = useMemo(() => {
     const d = entries.reduce((s, e) => s + e.debit, 0);
     const c = entries.reduce((s, e) => s + e.credit, 0);
-    return { d, c, bal: opening + d - c };
-  }, [entries, opening]);
+    return { d, c, bal: openingAdjusted + d - c };
+  }, [entries, openingAdjusted]);
 
   const partyName = parties.find((p) => p.id === partyId)?.name ?? "";
   const balanceLabel = partyType === "supplier"
@@ -122,16 +138,17 @@ function StatementsPage() {
 
   function exportPDF() {
     const rows: (string|number)[][] = [];
-    if (opening) rows.push([new Date().toLocaleDateString(), "Opening balance", "", 0, 0]);
-    let run = opening;
+    if (openingAdjusted) rows.push([new Date().toLocaleDateString(), "Opening balance", "", 0, 0]);
+    let run = openingAdjusted;
     for (const e of entries) {
       run = run + e.debit - e.credit;
       rows.push([new Date(e.date).toLocaleDateString(), e.description, e.ref, e.debit, e.credit]);
     }
+    const dateRange = (fromDate || toDate) ? ` | Range: ${fromDate || "…"} → ${toDate || "…"}` : "";
     buildLedgerPDF({
       title: `Statement — ${partyName}`,
       subtitle: `${partyType.replace("_", "-")} statement`,
-      filters: `Opening: ${fmt(opening)}`,
+      filters: `Opening: ${fmt(openingAdjusted)}${dateRange}`,
       columns: ["Date", "Description", "Ref", "Debit (SAR)", "Credit (SAR)"],
       rows,
       totals: [
@@ -142,13 +159,13 @@ function StatementsPage() {
     });
   }
 
-  let running = opening;
+  let running = openingAdjusted;
 
   return (
     <div>
       <PageHeader title="Statements" description="Debit / credit ledger per supplier, sub-agent, or customer." />
       <Card className="shadow-soft p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="space-y-2">
             <Label>Party type</Label>
             <Select value={partyType} onValueChange={(v: any) => setPartyType(v)}>
@@ -160,12 +177,25 @@ function StatementsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2 md:col-span-3">
             <Label>Party</Label>
             <Select value={partyId} onValueChange={setPartyId}>
               <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
               <SelectContent>{parties.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>From date</Label>
+            <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>To date</Label>
+            <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </div>
+          <div className="space-y-2 md:col-span-2 flex items-end">
+            {(fromDate || toDate) && (
+              <Button variant="ghost" size="sm" onClick={() => { setFromDate(""); setToDate(""); }}>Clear dates</Button>
+            )}
           </div>
         </div>
         {partyId && (
@@ -180,7 +210,10 @@ function StatementsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b bg-muted/40">
             <div>
               <div className="text-lg font-semibold">{partyName}</div>
-              <div className="text-xs text-muted-foreground">Opening balance: {fmt(opening)}</div>
+              <div className="text-xs text-muted-foreground">
+                Opening balance: {fmt(openingAdjusted)}
+                {(fromDate || toDate) && ` (as of ${fromDate || "start"})`}
+              </div>
             </div>
             <div className="text-right">
               <div className="text-xs text-muted-foreground">{balanceLabel}</div>
@@ -199,14 +232,14 @@ function StatementsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {opening !== 0 && (
+              {openingAdjusted !== 0 && (
                 <TableRow className="bg-muted/30">
                   <TableCell>—</TableCell><TableCell colSpan={2}>Opening balance</TableCell>
                   <TableCell className="text-right">—</TableCell><TableCell className="text-right">—</TableCell>
-                  <TableCell className="text-right font-semibold">{fmt(opening)}</TableCell>
+                  <TableCell className="text-right font-semibold">{fmt(openingAdjusted)}</TableCell>
                 </TableRow>
               )}
-              {entries.length === 0 && opening === 0 && (
+              {entries.length === 0 && openingAdjusted === 0 && (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions yet.</TableCell></TableRow>
               )}
               {entries.map((e, i) => {
