@@ -108,15 +108,28 @@ function StatementsPage() {
       }
 
       list.sort((a, b) => a.date.localeCompare(b.date));
-      setEntries(list);
+      setAllEntries(list);
     })();
   }, [partyId, partyType]);
+
+  const { entries, openingAdjusted } = useMemo(() => {
+    const fromTs = fromDate ? new Date(fromDate + "T00:00:00").getTime() : -Infinity;
+    const toTs = toDate ? new Date(toDate + "T23:59:59").getTime() : Infinity;
+    let openAdj = opening;
+    const filtered: Entry[] = [];
+    for (const e of allEntries) {
+      const t = new Date(e.date).getTime();
+      if (t < fromTs) openAdj += e.debit - e.credit;
+      else if (t <= toTs) filtered.push(e);
+    }
+    return { entries: filtered, openingAdjusted: openAdj };
+  }, [allEntries, opening, fromDate, toDate]);
 
   const totals = useMemo(() => {
     const d = entries.reduce((s, e) => s + e.debit, 0);
     const c = entries.reduce((s, e) => s + e.credit, 0);
-    return { d, c, bal: opening + d - c };
-  }, [entries, opening]);
+    return { d, c, bal: openingAdjusted + d - c };
+  }, [entries, openingAdjusted]);
 
   const partyName = parties.find((p) => p.id === partyId)?.name ?? "";
   const balanceLabel = partyType === "supplier"
