@@ -29,8 +29,10 @@ function StatementsPage() {
   const [partyType, setPartyType] = useState<PartyType>("supplier");
   const [partyId, setPartyId] = useState<string>("");
   const [parties, setParties] = useState<any[]>([]);
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [allEntries, setAllEntries] = useState<Entry[]>([]);
   const [opening, setOpening] = useState(0);
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
 
   useEffect(() => {
     supabase.from(PARTY_TABLES[partyType]).select("id, name").eq("is_deleted", false).order("name").then(({ data }) => {
