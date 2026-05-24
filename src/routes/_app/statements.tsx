@@ -41,7 +41,7 @@ function StatementsPage() {
   }, [partyType]);
 
   useEffect(() => {
-    if (!partyId) { setEntries([]); setOpening(0); return; }
+    if (!partyId) { setAllEntries([]); setOpening(0); return; }
     (async () => {
       const list: Entry[] = [];
       // opening balance (suppliers/sub_agents only)
