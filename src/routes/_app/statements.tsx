@@ -165,7 +165,7 @@ function StatementsPage() {
     <div>
       <PageHeader title="Statements" description="Debit / credit ledger per supplier, sub-agent, or customer." />
       <Card className="shadow-soft p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="space-y-2">
             <Label>Party type</Label>
             <Select value={partyType} onValueChange={(v: any) => setPartyType(v)}>
@@ -177,12 +177,25 @@ function StatementsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2 md:col-span-3">
             <Label>Party</Label>
             <Select value={partyId} onValueChange={setPartyId}>
               <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
               <SelectContent>{parties.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>From date</Label>
+            <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>To date</Label>
+            <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </div>
+          <div className="space-y-2 md:col-span-2 flex items-end">
+            {(fromDate || toDate) && (
+              <Button variant="ghost" size="sm" onClick={() => { setFromDate(""); setToDate(""); }}>Clear dates</Button>
+            )}
           </div>
         </div>
         {partyId && (
