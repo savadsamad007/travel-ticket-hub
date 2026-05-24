@@ -210,7 +210,10 @@ function StatementsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b bg-muted/40">
             <div>
               <div className="text-lg font-semibold">{partyName}</div>
-              <div className="text-xs text-muted-foreground">Opening balance: {fmt(opening)}</div>
+              <div className="text-xs text-muted-foreground">
+                Opening balance: {fmt(openingAdjusted)}
+                {(fromDate || toDate) && ` (as of ${fromDate || "start"})`}
+              </div>
             </div>
             <div className="text-right">
               <div className="text-xs text-muted-foreground">{balanceLabel}</div>
@@ -229,14 +232,14 @@ function StatementsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {opening !== 0 && (
+              {openingAdjusted !== 0 && (
                 <TableRow className="bg-muted/30">
                   <TableCell>—</TableCell><TableCell colSpan={2}>Opening balance</TableCell>
                   <TableCell className="text-right">—</TableCell><TableCell className="text-right">—</TableCell>
-                  <TableCell className="text-right font-semibold">{fmt(opening)}</TableCell>
+                  <TableCell className="text-right font-semibold">{fmt(openingAdjusted)}</TableCell>
                 </TableRow>
               )}
-              {entries.length === 0 && opening === 0 && (
+              {entries.length === 0 && openingAdjusted === 0 && (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions yet.</TableCell></TableRow>
               )}
               {entries.map((e, i) => {
