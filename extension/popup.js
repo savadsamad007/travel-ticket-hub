@@ -149,15 +149,39 @@ function renderTicketForm() {
     </div>
   `;
   const buyerSel = document.getElementById("t_buyer_id");
+  const sameChk = document.getElementById("t_same_as_buyer");
+  const passInput = document.getElementById("t_passenger_name");
+  const sameRow = sameChk.parentElement;
+
+  const syncPassenger = () => {
+    if (!sameChk.checked) return;
+    const list = document.getElementById("t_buyer_type").value === "customer" ? state.customers : state.agents;
+    const sel = list.find((x) => String(x.id) === String(buyerSel.value));
+    if (sel) { passInput.value = sel.name; passInput.readOnly = true; }
+  };
+  const updateChkVisibility = () => {
+    const isCust = document.getElementById("t_buyer_type").value === "customer";
+    sameRow.style.display = isCust ? "flex" : "none";
+    if (!isCust) { sameChk.checked = false; passInput.readOnly = false; }
+  };
   const fillBuyers = () => {
     const list = document.getElementById("t_buyer_type").value === "customer" ? state.customers : state.agents;
     buyerSel.innerHTML = `<option value="">— pick —</option>` + list.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+    syncPassenger();
   };
-  document.getElementById("t_buyer_type").onchange = fillBuyers;
+  document.getElementById("t_buyer_type").onchange = () => { updateChkVisibility(); fillBuyers(); };
+  buyerSel.onchange = syncPassenger;
+  sameChk.onchange = () => { passInput.readOnly = sameChk.checked; syncPassenger(); if (!sameChk.checked) passInput.value = ""; };
+  updateChkVisibility();
   fillBuyers();
 
   document.getElementById("saveTicket").onclick = async () => {
     const v = (id) => document.getElementById(id).value;
+    // If "same as customer" checked, force passenger = customer name
+    if (sameChk.checked && v("t_buyer_type") === "customer") {
+      const sel = state.customers.find((x) => String(x.id) === String(v("t_buyer_id")));
+      if (sel) passInput.value = sel.name;
+    }
     if (!v("t_passenger_name").trim()) return showMsg("Passenger name required", "err");
     if (!v("t_supplier_id")) return showMsg("Pick supplier", "err");
     if (!v("t_buyer_id")) return showMsg("Pick buyer", "err");
@@ -180,6 +204,7 @@ function renderTicketForm() {
     const { error } = await sb.from("tickets").insert(payload);
     if (error) return showMsg(error.message, "err");
     showMsg("Ticket saved", "ok");
+    await loadCustomerSummary();
     renderTicketForm();
     renderRecent();
   };
