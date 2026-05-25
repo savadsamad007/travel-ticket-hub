@@ -300,6 +300,7 @@ async function init() {
   state.user = data.session.user;
   await loadAgency(state.user.id);
   await loadLookups();
+  await loadCustomerSummary();
   state.tab = "ticket";
   renderHome();
 }
