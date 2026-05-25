@@ -34,6 +34,7 @@ type Form = {
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string; booking_date: string;
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
   walking_customer: boolean; walking_name: string; walking_phone: string;
+  passenger_same_as_customer: boolean;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
 };
@@ -43,6 +44,7 @@ const emptyForm: Form = {
   ticket_no: "", pnr: "", passenger_name: "", route: "", travel_date: "", booking_date: todayISO(), airline: "",
   supplier_id: "", buyer_type: "customer", buyer_id: "",
   walking_customer: false, walking_name: "", walking_phone: "",
+  passenger_same_as_customer: false,
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
 };
 
