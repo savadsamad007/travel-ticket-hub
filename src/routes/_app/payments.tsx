@@ -143,7 +143,13 @@ function PaymentsPage() {
                 <Label>Party</Label>
                 <Select value={form.party_id} onValueChange={(v) => setForm({ ...form, party_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
-                  <SelectContent>{parties.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{parties.map((p) => {
+                    const s = form.party_type === "customer" ? customerSummary[p.id] : null;
+                    const suffix = s
+                      ? ` ${s.ticket_no ? `· T#${s.ticket_no}` : ""}${s.pending > 0 ? ` · Due ${fmt(s.pending)}` : ""}`
+                      : "";
+                    return <SelectItem key={p.id} value={p.id}>{p.name}{suffix}</SelectItem>;
+                  })}</SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
