@@ -290,7 +290,7 @@ function TicketsPage() {
                 <div className="space-y-2"><Label>Ticket no</Label><Input value={form.ticket_no} maxLength={50} onChange={(e) => setForm({ ...form, ticket_no: e.target.value })} /></div>
                 <div className="space-y-2"><Label>PNR</Label><Input value={form.pnr} maxLength={20} onChange={(e) => setForm({ ...form, pnr: e.target.value })} /></div>
               </div>
-              <div className="space-y-2"><Label>Passenger name *</Label><Input required maxLength={120} value={form.passenger_name} onChange={(e) => setForm({ ...form, passenger_name: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Passenger name *</Label><Input required maxLength={120} value={form.passenger_name} readOnly={form.passenger_same_as_customer && form.buyer_type === "customer" && !form.walking_customer} onChange={(e) => setForm({ ...form, passenger_name: e.target.value })} /></div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label>Route <span className="text-xs text-muted-foreground">(auto-/ every 3 letters)</span></Label>
