@@ -241,8 +241,18 @@ function renderPaymentForm() {
   const partySel = document.getElementById("p_party_id");
   const fillParty = () => {
     const t = document.getElementById("p_party_type").value;
-    const list = t === "customer" ? state.customers : t === "supplier" ? state.suppliers : state.agents;
-    partySel.innerHTML = `<option value="">— pick —</option>` + list.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+    if (t === "customer") {
+      partySel.innerHTML = `<option value="">— pick —</option>` + state.customers.map((x) => {
+        const s = state.customerSummary[x.id] || { ticket_no: "", sales: 0, paid: 0 };
+        const pending = s.sales - s.paid;
+        const tno = s.ticket_no ? ` · T#${s.ticket_no}` : "";
+        const pend = pending > 0 ? ` · Due ${fmt(pending)}` : "";
+        return `<option value="${x.id}">${esc(x.name)}${esc(tno)}${esc(pend)}</option>`;
+      }).join("");
+    } else {
+      const list = t === "supplier" ? state.suppliers : state.agents;
+      partySel.innerHTML = `<option value="">— pick —</option>` + list.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+    }
   };
   document.getElementById("p_party_type").onchange = fillParty;
   fillParty();
