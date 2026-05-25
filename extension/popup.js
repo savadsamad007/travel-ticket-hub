@@ -19,7 +19,27 @@ const fmt = (n) => "SAR " + Number(n || 0).toLocaleString("en-US", { minimumFrac
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-let state = { user: null, agencyOwner: null, tab: "ticket", suppliers: [], customers: [], agents: [] };
+let state = { user: null, agencyOwner: null, tab: "ticket", suppliers: [], customers: [], agents: [], customerSummary: {} };
+
+// Build a per-customer summary: latest ticket # + pending amount
+async function loadCustomerSummary() {
+  const map = {};
+  state.customers.forEach((c) => { map[c.id] = { ticket_no: "", sales: 0, paid: 0 }; });
+  const [{ data: tks }, { data: pys }] = await Promise.all([
+    sb.from("tickets").select("buyer_id,buyer_type,ticket_no,sale_price,created_at").eq("is_deleted", false).eq("buyer_type", "customer").order("created_at", { ascending: false }),
+    sb.from("payments").select("party_id,party_type,amount,direction").eq("is_deleted", false).eq("party_type", "customer"),
+  ]);
+  (tks || []).forEach((t) => {
+    const m = map[t.buyer_id]; if (!m) return;
+    m.sales += Number(t.sale_price || 0);
+    if (!m.ticket_no && t.ticket_no) m.ticket_no = t.ticket_no;
+  });
+  (pys || []).forEach((p) => {
+    const m = map[p.party_id]; if (!m) return;
+    if (p.direction === "in") m.paid += Number(p.amount || 0);
+  });
+  state.customerSummary = map;
+}
 
 async function loadAgency(uid) {
   const { data: ua } = await sb.from("user_agency").select("agency_owner, role").eq("user_id", uid).eq("is_deleted", false).maybeSingle();
