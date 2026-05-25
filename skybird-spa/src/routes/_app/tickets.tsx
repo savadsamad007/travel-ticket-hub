@@ -34,6 +34,7 @@ type Form = {
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string; booking_date: string;
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
   walking_customer: boolean; walking_name: string; walking_phone: string;
+  passenger_same_as_customer: boolean;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
 };
@@ -43,6 +44,7 @@ const emptyForm: Form = {
   ticket_no: "", pnr: "", passenger_name: "", route: "", travel_date: "", booking_date: todayISO(), airline: "",
   supplier_id: "", buyer_type: "customer", buyer_id: "",
   walking_customer: false, walking_name: "", walking_phone: "",
+  passenger_same_as_customer: false,
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
 };
 
@@ -218,6 +220,7 @@ function TicketsPage() {
       airline: t.airline ?? "",
       supplier_id: t.supplier_id ?? "", buyer_type: t.buyer_type, buyer_id: t.buyer_id,
       walking_customer: false, walking_name: "", walking_phone: "",
+      passenger_same_as_customer: false,
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
       status: t.status, notes: t.notes ?? "", services: [],
     });
@@ -287,7 +290,7 @@ function TicketsPage() {
                 <div className="space-y-2"><Label>Ticket no</Label><Input value={form.ticket_no} maxLength={50} onChange={(e) => setForm({ ...form, ticket_no: e.target.value })} /></div>
                 <div className="space-y-2"><Label>PNR</Label><Input value={form.pnr} maxLength={20} onChange={(e) => setForm({ ...form, pnr: e.target.value })} /></div>
               </div>
-              <div className="space-y-2"><Label>Passenger name *</Label><Input required maxLength={120} value={form.passenger_name} onChange={(e) => setForm({ ...form, passenger_name: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Passenger name *</Label><Input required maxLength={120} value={form.passenger_name} readOnly={form.passenger_same_as_customer && form.buyer_type === "customer" && !form.walking_customer} onChange={(e) => setForm({ ...form, passenger_name: e.target.value })} /></div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label>Route <span className="text-xs text-muted-foreground">(auto-/ every 3 letters)</span></Label>
@@ -346,15 +349,49 @@ function TicketsPage() {
                     <Label>Buyer *</Label>
                     <div className="flex gap-2">
                       <div className="flex-1">
-                        <Select value={form.buyer_id} onValueChange={(v) => setForm({ ...form, buyer_id: v })}>
+                        <Select value={form.buyer_id} onValueChange={(v) => {
+                          const c = buyerOptions.find((x: any) => x.id === v);
+                          setForm((f) => ({
+                            ...f,
+                            buyer_id: v,
+                            passenger_name: f.passenger_same_as_customer && f.buyer_type === "customer" && c
+                              ? c.name
+                              : f.passenger_name,
+                          }));
+                        }}>
                           <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
                           <SelectContent>{buyerOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       {form.buyer_type === "customer" && (
-                        <QuickAddCustomer onCreated={(c) => { setCustomers((cs) => [c, ...cs]); setForm((f) => ({ ...f, buyer_id: c.id })); }} />
+                        <QuickAddCustomer onCreated={(c) => {
+                          setCustomers((cs) => [c, ...cs]);
+                          setForm((f) => ({
+                            ...f,
+                            buyer_id: c.id,
+                            passenger_name: f.passenger_same_as_customer ? c.name : f.passenger_name,
+                          }));
+                        }} />
                       )}
                     </div>
+                    {form.buyer_type === "customer" && (
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground mt-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.passenger_same_as_customer}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            const c = customers.find((x) => x.id === form.buyer_id);
+                            setForm((f) => ({
+                              ...f,
+                              passenger_same_as_customer: checked,
+                              passenger_name: checked && c ? c.name : f.passenger_name,
+                            }));
+                          }}
+                        />
+                        Passenger name = customer name
+                      </label>
+                    )}
                   </div>
                 </div>
               ) : (
