@@ -275,6 +275,7 @@ function renderPaymentForm() {
     const { error } = await sb.from("payments").insert(payload);
     if (error) return showMsg(error.message, "err");
     showMsg("Payment saved", "ok");
+    await loadCustomerSummary();
     renderPaymentForm();
   };
 }
