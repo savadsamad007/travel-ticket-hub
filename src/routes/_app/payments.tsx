@@ -29,6 +29,7 @@ function PaymentsPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  const [customerSummary, setCustomerSummary] = useState<Record<string, { ticket_no: string; pending: number }>>({});
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -37,13 +38,35 @@ function PaymentsPage() {
   });
 
   async function load() {
-    const [py, sp, cu, ag] = await Promise.all([
+    const [py, sp, cu, ag, tk, svc] = await Promise.all([
       supabase.from("payments").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("suppliers").select("id,name").eq("is_deleted", false),
       supabase.from("customers").select("id,name").eq("is_deleted", false),
       supabase.from("sub_agents").select("id,name").eq("is_deleted", false),
+      supabase.from("tickets").select("id, ticket_no, buyer_type, buyer_id, sale_price, created_at").eq("is_deleted", false).eq("buyer_type", "customer").order("created_at", { ascending: false }),
+      supabase.from("ticket_services").select("ticket_id, sale_price").eq("is_deleted", false),
     ]);
     setRows(py.data ?? []); setSuppliers(sp.data ?? []); setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
+    // Build per-customer summary: latest ticket_no + pending = sales - payments_in
+    const svcByTicket: Record<string, number> = {};
+    for (const s of svc.data ?? []) svcByTicket[s.ticket_id] = (svcByTicket[s.ticket_id] ?? 0) + Number(s.sale_price ?? 0);
+    const sales: Record<string, number> = {};
+    const latestTno: Record<string, string> = {};
+    for (const t of tk.data ?? []) {
+      sales[t.buyer_id] = (sales[t.buyer_id] ?? 0) + Number(t.sale_price ?? 0) + (svcByTicket[t.id] ?? 0);
+      if (!latestTno[t.buyer_id] && t.ticket_no) latestTno[t.buyer_id] = t.ticket_no;
+    }
+    const paid: Record<string, number> = {};
+    for (const p of py.data ?? []) {
+      if (p.party_type === "customer" && p.direction === "in") {
+        paid[p.party_id] = (paid[p.party_id] ?? 0) + Number(p.amount ?? 0);
+      }
+    }
+    const sum: Record<string, { ticket_no: string; pending: number }> = {};
+    for (const c of cu.data ?? []) {
+      sum[c.id] = { ticket_no: latestTno[c.id] ?? "", pending: (sales[c.id] ?? 0) - (paid[c.id] ?? 0) };
+    }
+    setCustomerSummary(sum);
   }
   useEffect(() => { load(); }, []);
 
