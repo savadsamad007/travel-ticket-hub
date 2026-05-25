@@ -137,6 +137,10 @@ function renderTicketForm() {
         </div>
         <div><label>Buyer *</label><select id="t_buyer_id"></select></div>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer">
+        <input type="checkbox" id="t_same_as_buyer" style="width:auto;margin:0" />
+        <span>Passenger name = customer name</span>
+      </label>
       <div class="row">
         <div><label>Cost</label><input id="t_cost_price" type="number" step="0.01" value="0" /></div>
         <div><label>Sale</label><input id="t_sale_price" type="number" step="0.01" value="0" /></div>
