@@ -220,6 +220,7 @@ function TicketsPage() {
       airline: t.airline ?? "",
       supplier_id: t.supplier_id ?? "", buyer_type: t.buyer_type, buyer_id: t.buyer_id,
       walking_customer: false, walking_name: "", walking_phone: "",
+      passenger_same_as_customer: false,
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
       status: t.status, notes: t.notes ?? "", services: [],
     });
