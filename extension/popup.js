@@ -19,7 +19,27 @@ const fmt = (n) => "SAR " + Number(n || 0).toLocaleString("en-US", { minimumFrac
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-let state = { user: null, agencyOwner: null, tab: "ticket", suppliers: [], customers: [], agents: [] };
+let state = { user: null, agencyOwner: null, tab: "ticket", suppliers: [], customers: [], agents: [], customerSummary: {} };
+
+// Build a per-customer summary: latest ticket # + pending amount
+async function loadCustomerSummary() {
+  const map = {};
+  state.customers.forEach((c) => { map[c.id] = { ticket_no: "", sales: 0, paid: 0 }; });
+  const [{ data: tks }, { data: pys }] = await Promise.all([
+    sb.from("tickets").select("buyer_id,buyer_type,ticket_no,sale_price,created_at").eq("is_deleted", false).eq("buyer_type", "customer").order("created_at", { ascending: false }),
+    sb.from("payments").select("party_id,party_type,amount,direction").eq("is_deleted", false).eq("party_type", "customer"),
+  ]);
+  (tks || []).forEach((t) => {
+    const m = map[t.buyer_id]; if (!m) return;
+    m.sales += Number(t.sale_price || 0);
+    if (!m.ticket_no && t.ticket_no) m.ticket_no = t.ticket_no;
+  });
+  (pys || []).forEach((p) => {
+    const m = map[p.party_id]; if (!m) return;
+    if (p.direction === "in") m.paid += Number(p.amount || 0);
+  });
+  state.customerSummary = map;
+}
 
 async function loadAgency(uid) {
   const { data: ua } = await sb.from("user_agency").select("agency_owner, role").eq("user_id", uid).eq("is_deleted", false).maybeSingle();
@@ -117,6 +137,10 @@ function renderTicketForm() {
         </div>
         <div><label>Buyer *</label><select id="t_buyer_id"></select></div>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer">
+        <input type="checkbox" id="t_same_as_buyer" style="width:auto;margin:0" />
+        <span>Passenger name = customer name</span>
+      </label>
       <div class="row">
         <div><label>Cost</label><input id="t_cost_price" type="number" step="0.01" value="0" /></div>
         <div><label>Sale</label><input id="t_sale_price" type="number" step="0.01" value="0" /></div>
@@ -125,15 +149,39 @@ function renderTicketForm() {
     </div>
   `;
   const buyerSel = document.getElementById("t_buyer_id");
+  const sameChk = document.getElementById("t_same_as_buyer");
+  const passInput = document.getElementById("t_passenger_name");
+  const sameRow = sameChk.parentElement;
+
+  const syncPassenger = () => {
+    if (!sameChk.checked) return;
+    const list = document.getElementById("t_buyer_type").value === "customer" ? state.customers : state.agents;
+    const sel = list.find((x) => String(x.id) === String(buyerSel.value));
+    if (sel) { passInput.value = sel.name; passInput.readOnly = true; }
+  };
+  const updateChkVisibility = () => {
+    const isCust = document.getElementById("t_buyer_type").value === "customer";
+    sameRow.style.display = isCust ? "flex" : "none";
+    if (!isCust) { sameChk.checked = false; passInput.readOnly = false; }
+  };
   const fillBuyers = () => {
     const list = document.getElementById("t_buyer_type").value === "customer" ? state.customers : state.agents;
     buyerSel.innerHTML = `<option value="">— pick —</option>` + list.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+    syncPassenger();
   };
-  document.getElementById("t_buyer_type").onchange = fillBuyers;
+  document.getElementById("t_buyer_type").onchange = () => { updateChkVisibility(); fillBuyers(); };
+  buyerSel.onchange = syncPassenger;
+  sameChk.onchange = () => { passInput.readOnly = sameChk.checked; syncPassenger(); if (!sameChk.checked) passInput.value = ""; };
+  updateChkVisibility();
   fillBuyers();
 
   document.getElementById("saveTicket").onclick = async () => {
     const v = (id) => document.getElementById(id).value;
+    // If "same as customer" checked, force passenger = customer name
+    if (sameChk.checked && v("t_buyer_type") === "customer") {
+      const sel = state.customers.find((x) => String(x.id) === String(v("t_buyer_id")));
+      if (sel) passInput.value = sel.name;
+    }
     if (!v("t_passenger_name").trim()) return showMsg("Passenger name required", "err");
     if (!v("t_supplier_id")) return showMsg("Pick supplier", "err");
     if (!v("t_buyer_id")) return showMsg("Pick buyer", "err");
@@ -156,6 +204,7 @@ function renderTicketForm() {
     const { error } = await sb.from("tickets").insert(payload);
     if (error) return showMsg(error.message, "err");
     showMsg("Ticket saved", "ok");
+    await loadCustomerSummary();
     renderTicketForm();
     renderRecent();
   };
@@ -192,8 +241,18 @@ function renderPaymentForm() {
   const partySel = document.getElementById("p_party_id");
   const fillParty = () => {
     const t = document.getElementById("p_party_type").value;
-    const list = t === "customer" ? state.customers : t === "supplier" ? state.suppliers : state.agents;
-    partySel.innerHTML = `<option value="">— pick —</option>` + list.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+    if (t === "customer") {
+      partySel.innerHTML = `<option value="">— pick —</option>` + state.customers.map((x) => {
+        const s = state.customerSummary[x.id] || { ticket_no: "", sales: 0, paid: 0 };
+        const pending = s.sales - s.paid;
+        const tno = s.ticket_no ? ` · T#${s.ticket_no}` : "";
+        const pend = pending > 0 ? ` · Due ${fmt(pending)}` : "";
+        return `<option value="${x.id}">${esc(x.name)}${esc(tno)}${esc(pend)}</option>`;
+      }).join("");
+    } else {
+      const list = t === "supplier" ? state.suppliers : state.agents;
+      partySel.innerHTML = `<option value="">— pick —</option>` + list.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+    }
   };
   document.getElementById("p_party_type").onchange = fillParty;
   fillParty();
@@ -216,6 +275,7 @@ function renderPaymentForm() {
     const { error } = await sb.from("payments").insert(payload);
     if (error) return showMsg(error.message, "err");
     showMsg("Payment saved", "ok");
+    await loadCustomerSummary();
     renderPaymentForm();
   };
 }
@@ -240,6 +300,7 @@ async function init() {
   state.user = data.session.user;
   await loadAgency(state.user.id);
   await loadLookups();
+  await loadCustomerSummary();
   state.tab = "ticket";
   renderHome();
 }
