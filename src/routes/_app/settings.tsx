@@ -70,7 +70,7 @@ function SettingsPage() {
     if (!agencyOwner) return;
     setSaving(true);
     try {
-      const payload = {
+      const basePayload: Record<string, unknown> = {
         agency_owner: agencyOwner,
         agency_name: form.agency_name.trim() || "My Agency",
         legal_name: form.legal_name || null,
@@ -81,15 +81,30 @@ function SettingsPage() {
         vat_number: form.vat_number || null,
         logo_url: form.logo_url || null,
         opening_cash: Number(form.opening_cash || 0),
+        updated_at: new Date().toISOString(),
+      };
+      const fullPayload = {
+        ...basePayload,
         report_email: form.report_email || null,
         daily_report_enabled: form.daily_report_enabled,
         daily_report_time: form.daily_report_time || "23:59",
-        updated_at: new Date().toISOString(),
       };
-      const { error } = await withSupabaseRetry(
+      let { error } = await withSupabaseRetry(
         async () =>
-          await supabase.from("agency_profile").upsert(payload, { onConflict: "agency_owner" }),
+          await supabase.from("agency_profile").upsert(fullPayload, { onConflict: "agency_owner" }),
       );
+      if (error && /report_email|daily_report/i.test(error.message)) {
+        const res = await withSupabaseRetry(
+          async () =>
+            await supabase.from("agency_profile").upsert(basePayload, { onConflict: "agency_owner" }),
+        );
+        error = res.error;
+        if (!error) {
+          toast.warning("Saved. Run supabase-daily-report.sql to enable daily-report fields.");
+          await refreshAgency();
+          return;
+        }
+      }
       if (error) throw error;
       toast.success("Saved");
       await refreshAgency();
