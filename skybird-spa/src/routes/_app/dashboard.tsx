@@ -86,7 +86,7 @@ function Dashboard() {
             <ul className="space-y-2">
               {s.recent.map((t) => (
                 <li key={t.id} className="flex justify-between text-sm border-b pb-2 last:border-0">
-                  <span className="truncate">{t.passenger_name} · <span className="text-muted-foreground">{t.route ?? "—"}</span></span>
+                  <span className="truncate"><span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted mr-2">#{t.ticket_no ?? "—"}</span>{t.passenger_name} · <span className="text-muted-foreground">{t.route ?? "—"}</span></span>
                   <span className="font-semibold">{fmt(t.sale_price)}</span>
                 </li>
               ))}
