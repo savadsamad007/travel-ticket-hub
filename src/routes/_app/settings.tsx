@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_app/settings")({
   component: SettingsPage,
@@ -29,6 +30,9 @@ function SettingsPage() {
     vat_number: "",
     logo_url: "",
     opening_cash: "0",
+    report_email: "",
+    daily_report_enabled: false,
+    daily_report_time: "23:59",
   });
 
   useEffect(() => {
@@ -50,13 +54,16 @@ function SettingsPage() {
           vat_number: data.vat_number ?? "",
           logo_url: data.logo_url ?? "",
           opening_cash: String(data.opening_cash ?? 0),
+          report_email: (data as any).report_email ?? "",
+          daily_report_enabled: Boolean((data as any).daily_report_enabled),
+          daily_report_time: (data as any).daily_report_time ?? "23:59",
         });
       }
       setLoading(false);
     })();
   }, [agencyOwner]);
 
-  if (role && role !== "admin") return <Navigate to="/dashboard" />;
+  if (role && role !== "admin" && role !== "super_admin") return <Navigate to="/dashboard" />;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -74,6 +81,9 @@ function SettingsPage() {
         vat_number: form.vat_number || null,
         logo_url: form.logo_url || null,
         opening_cash: Number(form.opening_cash || 0),
+        report_email: form.report_email || null,
+        daily_report_enabled: form.daily_report_enabled,
+        daily_report_time: form.daily_report_time || "23:59",
         updated_at: new Date().toISOString(),
       };
       const { error } = await withSupabaseRetry(
@@ -184,6 +194,46 @@ function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Starting cash balance — used by the Cash Book page.
               </p>
+            </div>
+            <div className="pt-4 mt-4 border-t space-y-3">
+              <div>
+                <h3 className="font-semibold">Daily report email</h3>
+                <p className="text-xs text-muted-foreground">
+                  Get a daily summary (tickets, sales, cost, profit, cash) emailed to you.
+                </p>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <Label className="text-sm">Enable daily report</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Sends at the time below (server time).
+                  </p>
+                </div>
+                <Switch
+                  checked={form.daily_report_enabled}
+                  onCheckedChange={(v) => setForm({ ...form, daily_report_enabled: v })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Report email</Label>
+                  <Input
+                    type="email"
+                    maxLength={255}
+                    placeholder="owner@yourdomain.com"
+                    value={form.report_email}
+                    onChange={(e) => setForm({ ...form, report_email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Send time (HH:MM)</Label>
+                  <Input
+                    type="time"
+                    value={form.daily_report_time}
+                    onChange={(e) => setForm({ ...form, daily_report_time: e.target.value })}
+                  />
+                </div>
+              </div>
             </div>
             <Button type="submit" disabled={saving} className="bg-gradient-brand text-white">
               {saving ? "Saving…" : "Save changes"}
