@@ -1,105 +1,42 @@
 
-# Skybird HTML rebuild — plan
+# Offline SQLite + Supabase Sync (Electron Desktop)
 
-You picked the biggest option: throw away the React/TanStack app and rebuild as a plain static HTML + vanilla JS app that talks directly to your Google Apps Script Web App (Sheet `1CcpkHYy…dsDNg`). No build step, no npm, opens in any browser, deploys as a zip on any static host (or even Google Drive / GitHub Pages).
+Goal: The Windows desktop app keeps working when the internet is down. All writes go into a local SQLite file first, and get pushed to Supabase automatically as soon as the network comes back.
 
-I want to confirm scope **before** I delete anything, because this is a one-way trip.
+## How it will work (plain language)
 
-## What you get
+1. When you open the desktop app, it opens a SQLite file stored in your Windows user folder (`%APPDATA%/Skybird/skybird.db`). Your data lives there permanently.
+2. Every screen reads from SQLite (instant, works offline).
+3. Every time you save (new ticket, payment, customer…), the app:
+   - writes to SQLite immediately, and
+   - queues the change in an `outbox` table.
+4. A background worker checks the internet every few seconds. When online, it drains the outbox to Supabase, then pulls any changes other users made in Supabase back into SQLite.
+5. A small status dot in the corner shows: **Online / Syncing / Offline (N pending)**.
 
-Single folder `skybird-html/` containing:
+## Technical design
 
-```text
-skybird-html/
-├── index.html              ← login + shell + routing (hash-based: #/dashboard)
-├── css/app.css             ← Tailwind-like utility CSS, dark/sky theme
-├── js/
-│   ├── api.js              ← gas(action, data) → POST to your Web App URL
-│   ├── auth.js             ← login / current user / role / permissions
-│   ├── store.js            ← in-memory cache + localStorage
-│   ├── router.js           ← hash router
-│   ├── ui.js               ← table, modal, toast, form helpers
-│   ├── airlines.js         ← SV→Saudia autocomplete (same list as before)
-│   ├── format.js           ← currency, route auto-/ every 3 chars
-│   ├── pdf.js              ← jsPDF via CDN — voucher A5 + invoice A4
-│   ├── whatsapp.js         ← wa.me share
-│   └── pages/
-│       ├── dashboard.js
-│       ├── tickets.js      ← + quick-add customer, airline autocomplete
-│       ├── refunds.js
-│       ├── payments.js     ← + voucher PDF + WhatsApp
-│       ├── customers.js
-│       ├── suppliers.js
-│       ├── sub-agents.js
-│       ├── cash-book.js
-│       ├── reports.js
-│       ├── staff.js        ← per-staff permission checkboxes
-│       └── settings.js     ← agency profile, report email
-└── apps-script/
-    └── Code.gs             ← READY-TO-PASTE Apps Script source you deploy
-```
+**SQLite engine:** `better-sqlite3` (synchronous, native to Electron main process). Renderer talks to it through Electron IPC (`preload.cjs` exposes a `window.skybird` API).
 
-External libs via CDN only: Tailwind Play CDN, jsPDF, jsPDF-AutoTable, Lucide icons. No bundler.
+**Schema:** mirrors the 8 Supabase tables already synced by `mssql-bridge/src/tables.js` (customers, suppliers, sub_agents, tickets, ticket_services, payments, refunds, agency_profile) + local `outbox` and `sync_state` tables.
 
-## How data flows
+**Data layer switch:** add `src/lib/db.ts` that auto-detects Electron (`window.skybird` present) vs browser. In Electron it calls the local API; in the browser it falls back to today's Supabase client. Zero changes to page components — they keep using the same helpers in `src/lib/data.ts`.
 
-```text
-Browser ──fetch POST JSON──▶ Apps Script Web App URL ──▶ Google Sheet tabs
-        ◀── { ok, data } ───
-```
+**Sync worker** (Electron main process):
+- Push: for each row in `outbox`, upsert/delete against Supabase; on success delete the outbox row.
+- Pull: for each table, `select * where updated_at > last_pulled_at` and merge into SQLite (last-write-wins by `updated_at`).
+- Runs every 10s when online, and once immediately on app start.
+- Conflict rule: server row wins if its `updated_at` is newer; otherwise local outbox row wins.
 
-Single endpoint, every call: `POST { action, data, token }` → `{ ok: true, data }` or `{ ok: false, error }`. All in `js/api.js`:
+**Auth:** sign-in still happens against Supabase (needs internet the first time). The session token is cached; while offline the app trusts the last known `agency_owner` / `role` and lets you keep working.
 
-```js
-async function gas(action, data = {}) {
-  const r = await fetch(WEB_APP_URL, { method: "POST", body: JSON.stringify({ action, data, token: getToken() }) });
-  const j = await r.json(); if (!j.ok) throw new Error(j.error); return j.data;
-}
-```
+## Deliverable
 
-## Apps Script side (I generate `Code.gs`)
+Repackaged `Skybird-Setup-Windows.zip` on `/mnt/documents/` containing the updated Electron app with SQLite + sync built in. Same install steps as before (unzip, run `Skybird.exe`).
 
-I'll write a complete `Code.gs` with:
-- Sheet tabs created on first run: `users`, `agency_profile`, `customers`, `suppliers`, `sub_agents`, `tickets`, `ticket_services`, `refunds`, `payments`, `staff_permissions`
-- `doPost(e)` router that dispatches on `action` (e.g. `auth.login`, `tickets.list`, `tickets.create`, `payments.create`, `staff.setPermissions`, …)
-- Simple token auth: on login, generate a token, store in `users` sheet with expiry, return to client; every other call validates it
-- Salesman permission check on each mutating action
-- Helpers: `nextId()`, `findRow()`, `appendRow()`, `updateRow()`
+## Out of scope (unless you ask)
 
-You will paste it into Apps Script editor, redeploy as Web App ("Anyone with the link"), and the same URL you sent keeps working.
+- Encrypting the local DB file.
+- Sync for the browser/web version (browsers can't hold a real SQLite file reliably; keep them online-only).
+- Multi-device merge of edits made offline on two PCs at the same time to the same row — last write wins.
 
-## Migration
-
-Nothing automatic. The React app's Supabase data stays in Supabase. To move existing data, export each table as CSV from Supabase and paste rows into the matching Sheet tab — column order will match what `Code.gs` expects (I'll document it at the top of `Code.gs`).
-
-## What gets lost vs the React app
-
-- No SSR / server functions / TanStack routing — pure hash routes
-- No type safety
-- PDFs will look the same (jsPDF), but tax-invoice layout will be slightly simpler
-- No auto-email cron (Apps Script `time-driven trigger` will replace it — I'll add a `sendDailyReport()` function inside `Code.gs` and tell you how to schedule it at 23:59)
-- Animations / polish reduced — focus is functional parity, not visual flourish
-
-## What I will NOT delete
-
-The existing React code in `src/` stays in the repo so you can still open the old preview if anything breaks. The new HTML app lives in `skybird-html/`. GitHub auto-syncs both (you already have GitHub connected — every save pushes automatically).
-
-## Order of work
-
-1. Write `apps-script/Code.gs` (the backend — most important, deploy this first)
-2. `index.html` + `css/app.css` + shell (login, sidebar, router)
-3. `js/api.js`, `auth.js`, `store.js`, `format.js`, `airlines.js`, `whatsapp.js`, `pdf.js`
-4. Pages in this order: dashboard → customers/suppliers/sub-agents → tickets → payments → refunds → cash-book → reports → staff → settings
-5. Final: zip `skybird-html/` to `/mnt/documents/skybird-html.zip` for download
-
-## What I need from you to start
-
-Just **"go"**. I'll build it in one pass. After it's done you:
-
-1. Open `apps-script/Code.gs`, copy into your Apps Script project, redeploy the Web App (same URL).
-2. Open `skybird-html/index.html` in a browser (or upload the folder to any static host / GitHub Pages).
-3. First load creates the admin user — set your password.
-
----
-
-Reply **go** to build, or tell me to drop any feature above.
+Reply "go" and I'll build it.
