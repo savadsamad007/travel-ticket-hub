@@ -226,6 +226,7 @@ function TicketsPage() {
       passenger_same_as_customer: false,
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
       status: t.status, notes: t.notes ?? "", services: [],
+      paid_method: "cash", paid_reference: "",
     });
     setOpen(true);
   }
