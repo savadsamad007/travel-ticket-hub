@@ -508,7 +508,7 @@ function TicketsPage() {
         </Dialog>
       </PageHeader>
 
-      <Card className="shadow-soft p-3 mb-3">
+      <Card className="shadow-soft p-3 mb-3 space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -517,6 +517,31 @@ function TicketsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+          <div className="space-y-1"><Label className="text-xs">From (booking)</Label><Input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} /></div>
+          <div className="space-y-1"><Label className="text-xs">To (booking)</Label><Input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} /></div>
+          <div className="space-y-1">
+            <Label className="text-xs">Supplier</Label>
+            <Select value={fSupplier} onValueChange={setFSupplier}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All suppliers</SelectItem>
+                {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Sub-agent</Label>
+            <Select value={fAgent} onValueChange={setFAgent}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All agents</SelectItem>
+                {agents.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" onClick={() => { setFDateFrom(""); setFDateTo(""); setFSupplier("all"); setFAgent("all"); setSearch(""); }}>Clear filters</Button>
         </div>
       </Card>
 
