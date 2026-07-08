@@ -147,6 +147,14 @@ function TicketsPage() {
     try {
       const owner_id = await getOwnerId();
 
+      // Enforce unique ticket number
+      if (form.ticket_no.trim()) {
+        const q = supabase.from("tickets").select("id").eq("is_deleted", false).eq("ticket_no", form.ticket_no.trim());
+        if (editing) q.neq("id", editing.id);
+        const { data: dup } = await q.limit(1);
+        if (dup && dup.length) return toast.error(`Ticket # ${form.ticket_no} already exists`);
+      }
+
       // Walking customer → upsert into customers, then use that id as buyer
       let buyer_id = form.buyer_id;
       let buyer_type = form.buyer_type;
