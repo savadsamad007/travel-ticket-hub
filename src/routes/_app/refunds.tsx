@@ -244,13 +244,17 @@ function RefundsPage() {
           <TableBody>
             {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No refunds yet.</TableCell></TableRow>}
             {rows.map((r) => {
-              const t = ticketInfo(r.ticket_id);
+              const t = r.ticket_id ? ticketInfo(r.ticket_id) : null;
+              const isExt = !r.ticket_id;
+              const num = isExt ? (r.external_ticket_no ? `#${r.external_ticket_no}` : "—") : (t?.ticket_no ? `#${t.ticket_no}` : "—");
+              const pax = isExt ? (r.external_passenger ?? "—") : (t?.passenger_name ?? "—");
+              const rt  = isExt ? (r.external_route ?? "—") : (t?.route ?? "—");
               return (
               <TableRow key={r.id} className="hover:bg-muted/40">
                 <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-sm font-medium">{t?.ticket_no ? `#${t.ticket_no}` : "—"}</TableCell>
-                <TableCell className="text-sm font-semibold">{t?.passenger_name ?? "—"}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{t?.route ?? "—"}</TableCell>
+                <TableCell className="text-sm font-medium">{num}{isExt && <span className="ml-1 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning">EXT</span>}</TableCell>
+                <TableCell className="text-sm font-semibold">{pax}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{rt}</TableCell>
                 <TableCell className="text-right text-warning font-semibold">{fmt(r.customer_refund_amount)}</TableCell>
                 <TableCell className="text-right text-info font-semibold">{fmt(r.supplier_retention_amount)}</TableCell>
                 <TableCell className="text-right text-success font-semibold">{fmt(r.supplier_refund_amount)}</TableCell>
