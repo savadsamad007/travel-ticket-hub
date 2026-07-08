@@ -107,14 +107,21 @@ function TicketsPage() {
 
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return tickets;
     return tickets.filter((t) => {
+      if (fSupplier !== "all" && t.supplier_id !== fSupplier) return false;
+      if (fAgent !== "all") {
+        if (t.buyer_type !== "sub_agent" || t.buyer_id !== fAgent) return false;
+      }
+      const d = t.booking_date || (t.created_at ? String(t.created_at).slice(0, 10) : "");
+      if (fDateFrom && d && d < fDateFrom) return false;
+      if (fDateTo && d && d > fDateTo) return false;
+      if (!q) return true;
       const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
       const hay = [t.ticket_no, t.passenger_name, t.pnr, t.route, t.airline, buyer?.name, buyer?.phone]
         .filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
-  }, [tickets, search, customers, agents]);
+  }, [tickets, search, customers, agents, fDateFrom, fDateTo, fSupplier, fAgent]);
 
   function nameOf(arr: any[], id: string | null) { return arr.find((x) => x.id === id)?.name ?? "—"; }
   function buyerName(t: any) { return nameOf(t.buyer_type === "customer" ? customers : agents, t.buyer_id); }
