@@ -26,22 +26,30 @@ function RefundsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [external, setExternal] = useState(false);
   const [form, setForm] = useState({
     ticket_id: "", customer_refund_amount: "0",
     supplier_retention_amount: "0", supplier_refund_amount: "0", notes: "",
+    // external ticket fields
+    ext_ticket_no: "", ext_passenger: "", ext_airline: "", ext_route: "",
+    ext_party_type: "supplier" as "supplier" | "sub_agent" | "customer",
+    ext_party_id: "",
   });
 
   async function load() {
-    const [rf, tk, cu, ag] = await Promise.all([
+    const [rf, tk, cu, ag, sp] = await Promise.all([
       supabase.from("refunds").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("tickets").select("id, ticket_no, pnr, passenger_name, route, sale_price, cost_price, status, buyer_type, buyer_id").eq("is_deleted", false),
       supabase.from("customers").select("id, name, phone").eq("is_deleted", false),
       supabase.from("sub_agents").select("id, name, phone").eq("is_deleted", false),
+      supabase.from("suppliers").select("id, name").eq("is_deleted", false).order("name"),
     ]);
     setRows(rf.data ?? []); setTickets(tk.data ?? []);
     setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
+    setSuppliers(sp.data ?? []);
   }
   useEffect(() => { load(); }, []);
 
@@ -58,24 +66,44 @@ function RefundsPage() {
   }, [tickets, customers, agents, search]);
 
   const selected = tickets.find((t) => t.id === form.ticket_id);
+  const extPartyList = form.ext_party_type === "supplier" ? suppliers : form.ext_party_type === "sub_agent" ? agents : customers;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.ticket_id) return toast.error("Pick a ticket");
+    if (!external && !form.ticket_id) return toast.error("Pick a ticket");
+    if (external && !form.ext_passenger.trim()) return toast.error("Enter passenger name");
     try {
       const owner_id = await getOwnerId();
-      const { error } = await supabase.from("refunds").insert({
-        owner_id, ticket_id: form.ticket_id,
+      const payload: any = {
+        owner_id,
         customer_refund_amount: Number(form.customer_refund_amount || 0),
         supplier_retention_amount: Number(form.supplier_retention_amount || 0),
         supplier_refund_amount: Number(form.supplier_refund_amount || 0),
         notes: form.notes || null,
-      });
+      };
+      if (external) {
+        payload.ticket_id = null;
+        payload.external_ticket_no = form.ext_ticket_no || null;
+        payload.external_passenger = form.ext_passenger.trim();
+        payload.external_airline = form.ext_airline || null;
+        payload.external_route = form.ext_route || null;
+        payload.external_party_type = form.ext_party_id ? form.ext_party_type : null;
+        payload.external_party_id = form.ext_party_id || null;
+      } else {
+        payload.ticket_id = form.ticket_id;
+      }
+      const { error } = await supabase.from("refunds").insert(payload);
       if (error) throw error;
-      await supabase.from("tickets").update({ status: "refunded" }).eq("id", form.ticket_id);
+      if (!external) {
+        await supabase.from("tickets").update({ status: "refunded" }).eq("id", form.ticket_id);
+      }
       toast.success("Refund recorded");
-      setOpen(false);
-      setForm({ ticket_id: "", customer_refund_amount: "0", supplier_retention_amount: "0", supplier_refund_amount: "0", notes: "" });
+      setOpen(false); setExternal(false);
+      setForm({
+        ticket_id: "", customer_refund_amount: "0", supplier_retention_amount: "0", supplier_refund_amount: "0", notes: "",
+        ext_ticket_no: "", ext_passenger: "", ext_airline: "", ext_route: "",
+        ext_party_type: "supplier", ext_party_id: "",
+      });
       load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -90,6 +118,7 @@ function RefundsPage() {
   function ticketInfo(id: string) {
     return tickets.find((x) => x.id === id);
   }
+
 
   return (
     <div>
