@@ -29,6 +29,7 @@ export const Route = createFileRoute("/_app/tickets")({
 
 type SvcRow = { service_type: string; description: string; cost_price: string; sale_price: string };
 
+type PaidMethod = "cash" | "bank" | "transfer";
 type Form = {
   is_service_only: boolean;
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string; booking_date: string;
@@ -37,6 +38,7 @@ type Form = {
   passenger_same_as_customer: boolean;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
+  paid_method: PaidMethod; paid_reference: string;
 };
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 const emptyForm: Form = {
@@ -46,6 +48,7 @@ const emptyForm: Form = {
   walking_customer: false, walking_name: "", walking_phone: "",
   passenger_same_as_customer: false,
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
+  paid_method: "cash", paid_reference: "",
 };
 
 const SERVICE_TYPES = [
@@ -70,6 +73,10 @@ function TicketsPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [search, setSearch] = useState("");
+  const [fDateFrom, setFDateFrom] = useState("");
+  const [fDateTo, setFDateTo] = useState("");
+  const [fSupplier, setFSupplier] = useState<string>("all");
+  const [fAgent, setFAgent] = useState<string>("all");
 
   // standalone service modal (on existing tickets)
   const [svcOpen, setSvcOpen] = useState(false);
@@ -100,14 +107,21 @@ function TicketsPage() {
 
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return tickets;
     return tickets.filter((t) => {
+      if (fSupplier !== "all" && t.supplier_id !== fSupplier) return false;
+      if (fAgent !== "all") {
+        if (t.buyer_type !== "sub_agent" || t.buyer_id !== fAgent) return false;
+      }
+      const d = t.booking_date || (t.created_at ? String(t.created_at).slice(0, 10) : "");
+      if (fDateFrom && d && d < fDateFrom) return false;
+      if (fDateTo && d && d > fDateTo) return false;
+      if (!q) return true;
       const buyer = (t.buyer_type === "customer" ? customers : agents).find((x: any) => x.id === t.buyer_id);
       const hay = [t.ticket_no, t.passenger_name, t.pnr, t.route, t.airline, buyer?.name, buyer?.phone]
         .filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
-  }, [tickets, search, customers, agents]);
+  }, [tickets, search, customers, agents, fDateFrom, fDateTo, fSupplier, fAgent]);
 
   function nameOf(arr: any[], id: string | null) { return arr.find((x) => x.id === id)?.name ?? "—"; }
   function buyerName(t: any) { return nameOf(t.buyer_type === "customer" ? customers : agents, t.buyer_id); }
@@ -191,6 +205,7 @@ function TicketsPage() {
         }
       }
       // insert new services from form (only on create — edit keeps existing services unchanged)
+      const svcSaleTotal = form.services.reduce((s, x) => s + Number(x.sale_price || 0), 0);
       if (!editing && form.services.length) {
         const rows = form.services
           .filter((s) => Number(s.sale_price) > 0 || Number(s.cost_price) > 0)
@@ -204,6 +219,22 @@ function TicketsPage() {
         if (rows.length) {
           const { error } = await supabase.from("ticket_services").insert(rows);
           if (error) throw error;
+        }
+      }
+
+      // Auto-record receive payment when status = paid (on create only)
+      if (!editing && form.status === "paid") {
+        const receiveAmount = (form.is_service_only ? 0 : Number(form.sale_price || 0)) + svcSaleTotal;
+        if (receiveAmount > 0) {
+          const dbMethod = form.paid_method === "transfer" ? "bank" : form.paid_method;
+          const { error: payErr } = await supabase.from("payments").insert({
+            owner_id, party_type: buyer_type, party_id: buyer_id,
+            direction: "in", amount: receiveAmount, method: dbMethod,
+            reference: form.paid_reference || `Ticket ${form.ticket_no || ticketId.slice(0, 8)}`,
+            ticket_id: ticketId,
+            notes: form.paid_method === "transfer" ? "Auto: paid via transfer on ticket create" : "Auto: paid on ticket create",
+          });
+          if (payErr) toast.error("Ticket saved, but payment entry failed: " + payErr.message);
         }
       }
       setOpen(false); setEditing(null); setForm(emptyForm); load();
@@ -223,6 +254,7 @@ function TicketsPage() {
       passenger_same_as_customer: false,
       cost_price: String(t.cost_price), sale_price: String(t.sale_price),
       status: t.status, notes: t.notes ?? "", services: [],
+      paid_method: "cash", paid_reference: "",
     });
     setOpen(true);
   }
@@ -449,6 +481,26 @@ function TicketsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {form.status === "paid" && !editing && (
+                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-success/5 p-3">
+                  <div className="space-y-2">
+                    <Label>Payment method *</Label>
+                    <Select value={form.paid_method} onValueChange={(v: PaidMethod) => setForm({ ...form, paid_method: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">💵 Cash</SelectItem>
+                        <SelectItem value="bank">🏦 Bank</SelectItem>
+                        <SelectItem value="transfer">🔁 Transfer (to supplier / agent account)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reference / Note</Label>
+                    <Input value={form.paid_reference} maxLength={120} placeholder="e.g. TXN #, bank name…" onChange={(e) => setForm({ ...form, paid_reference: e.target.value })} />
+                  </div>
+                  <div className="col-span-2 text-xs text-muted-foreground">A "receive payment" entry will be auto-added to the Payments dashboard.</div>
+                </div>
+              )}
               <div className="space-y-2"><Label>Notes</Label><Textarea value={form.notes} maxLength={1000} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
               <Button type="submit" className="w-full bg-gradient-brand text-white">{editing ? "Save changes" : "Create ticket"}</Button>
             </form>
@@ -456,7 +508,7 @@ function TicketsPage() {
         </Dialog>
       </PageHeader>
 
-      <Card className="shadow-soft p-3 mb-3">
+      <Card className="shadow-soft p-3 mb-3 space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -465,6 +517,31 @@ function TicketsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+          <div className="space-y-1"><Label className="text-xs">From (booking)</Label><Input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} /></div>
+          <div className="space-y-1"><Label className="text-xs">To (booking)</Label><Input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} /></div>
+          <div className="space-y-1">
+            <Label className="text-xs">Supplier</Label>
+            <Select value={fSupplier} onValueChange={setFSupplier}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All suppliers</SelectItem>
+                {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Sub-agent</Label>
+            <Select value={fAgent} onValueChange={setFAgent}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All agents</SelectItem>
+                {agents.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" onClick={() => { setFDateFrom(""); setFDateTo(""); setFSupplier("all"); setFAgent("all"); setSearch(""); }}>Clear filters</Button>
         </div>
       </Card>
 
