@@ -194,6 +194,7 @@ function TicketsPage() {
         }
       }
       // insert new services from form (only on create — edit keeps existing services unchanged)
+      const svcSaleTotal = form.services.reduce((s, x) => s + Number(x.sale_price || 0), 0);
       if (!editing && form.services.length) {
         const rows = form.services
           .filter((s) => Number(s.sale_price) > 0 || Number(s.cost_price) > 0)
@@ -207,6 +208,22 @@ function TicketsPage() {
         if (rows.length) {
           const { error } = await supabase.from("ticket_services").insert(rows);
           if (error) throw error;
+        }
+      }
+
+      // Auto-record receive payment when status = paid (on create only)
+      if (!editing && form.status === "paid") {
+        const receiveAmount = (form.is_service_only ? 0 : Number(form.sale_price || 0)) + svcSaleTotal;
+        if (receiveAmount > 0) {
+          const dbMethod = form.paid_method === "transfer" ? "bank" : form.paid_method;
+          const { error: payErr } = await supabase.from("payments").insert({
+            owner_id, party_type: buyer_type, party_id: buyer_id,
+            direction: "in", amount: receiveAmount, method: dbMethod,
+            reference: form.paid_reference || `Ticket ${form.ticket_no || ticketId.slice(0, 8)}`,
+            ticket_id: ticketId,
+            notes: form.paid_method === "transfer" ? "Auto: paid via transfer on ticket create" : "Auto: paid on ticket create",
+          });
+          if (payErr) toast.error("Ticket saved, but payment entry failed: " + payErr.message);
         }
       }
       setOpen(false); setEditing(null); setForm(emptyForm); load();
