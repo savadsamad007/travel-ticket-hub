@@ -470,6 +470,26 @@ function TicketsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {form.status === "paid" && !editing && (
+                <div className="grid grid-cols-2 gap-3 rounded-lg border bg-success/5 p-3">
+                  <div className="space-y-2">
+                    <Label>Payment method *</Label>
+                    <Select value={form.paid_method} onValueChange={(v: PaidMethod) => setForm({ ...form, paid_method: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">💵 Cash</SelectItem>
+                        <SelectItem value="bank">🏦 Bank</SelectItem>
+                        <SelectItem value="transfer">🔁 Transfer (to supplier / agent account)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reference / Note</Label>
+                    <Input value={form.paid_reference} maxLength={120} placeholder="e.g. TXN #, bank name…" onChange={(e) => setForm({ ...form, paid_reference: e.target.value })} />
+                  </div>
+                  <div className="col-span-2 text-xs text-muted-foreground">A "receive payment" entry will be auto-added to the Payments dashboard.</div>
+                </div>
+              )}
               <div className="space-y-2"><Label>Notes</Label><Textarea value={form.notes} maxLength={1000} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
               <Button type="submit" className="w-full bg-gradient-brand text-white">{editing ? "Save changes" : "Create ticket"}</Button>
             </form>
