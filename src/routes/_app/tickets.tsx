@@ -73,6 +73,10 @@ function TicketsPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [search, setSearch] = useState("");
+  const [fDateFrom, setFDateFrom] = useState("");
+  const [fDateTo, setFDateTo] = useState("");
+  const [fSupplier, setFSupplier] = useState<string>("all");
+  const [fAgent, setFAgent] = useState<string>("all");
 
   // standalone service modal (on existing tickets)
   const [svcOpen, setSvcOpen] = useState(false);
