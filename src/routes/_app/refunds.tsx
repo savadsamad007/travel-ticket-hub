@@ -129,6 +129,13 @@ function RefundsPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Record refund</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
+              <label className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                <Switch checked={external} onCheckedChange={setExternal} />
+                <span className="font-medium">External ticket</span>
+                <span className="text-xs text-muted-foreground">(not sold from my shop)</span>
+              </label>
+
+              {!external && (
               <div className="space-y-2">
                 <Label>Find ticket</Label>
                 <div className="relative">
@@ -162,6 +169,42 @@ function RefundsPage() {
                   <div className="text-xs text-muted-foreground">Cost {fmt(selected.cost_price)} · Sale {fmt(selected.sale_price)}</div>
                 )}
               </div>
+              )}
+
+              {external && (
+                <div className="space-y-3 rounded-lg border border-warning/40 bg-warning/5 p-3">
+                  <p className="text-xs text-muted-foreground">Ticket was not sold from your shop. Record refund details manually — the supplier/sub-agent balance below will still be adjusted.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2"><Label>Ticket no</Label><Input value={form.ext_ticket_no} onChange={(e) => setForm({ ...form, ext_ticket_no: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Passenger *</Label><Input required value={form.ext_passenger} onChange={(e) => setForm({ ...form, ext_passenger: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Airline</Label><Input value={form.ext_airline} onChange={(e) => setForm({ ...form, ext_airline: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Route</Label><Input value={form.ext_route} onChange={(e) => setForm({ ...form, ext_route: e.target.value })} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Sold by (party type)</Label>
+                      <Select value={form.ext_party_type} onValueChange={(v: any) => setForm({ ...form, ext_party_type: v, ext_party_id: "" })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="supplier">Supplier</SelectItem>
+                          <SelectItem value="sub_agent">Sub-agent</SelectItem>
+                          <SelectItem value="customer">Customer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Party</Label>
+                      <Select value={form.ext_party_id} onValueChange={(v) => setForm({ ...form, ext_party_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="— Optional —" /></SelectTrigger>
+                        <SelectContent>
+                          {extPartyList.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Refund to customer/sub-agent</Label>
                 <Input type="number" step="0.01" value={form.customer_refund_amount} onChange={(e) => setForm({ ...form, customer_refund_amount: e.target.value })} />
