@@ -29,6 +29,7 @@ export const Route = createFileRoute("/_app/tickets")({
 
 type SvcRow = { service_type: string; description: string; cost_price: string; sale_price: string };
 
+type PaidMethod = "cash" | "bank" | "transfer";
 type Form = {
   is_service_only: boolean;
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string; booking_date: string;
@@ -37,6 +38,7 @@ type Form = {
   passenger_same_as_customer: boolean;
   cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
+  paid_method: PaidMethod; paid_reference: string;
 };
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 const emptyForm: Form = {
@@ -46,6 +48,7 @@ const emptyForm: Form = {
   walking_customer: false, walking_name: "", walking_phone: "",
   passenger_same_as_customer: false,
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
+  paid_method: "cash", paid_reference: "",
 };
 
 const SERVICE_TYPES = [
