@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/tickets")({
 
 type SvcRow = { service_type: string; description: string; cost_price: string; sale_price: string };
 
-type PaidMethod = "cash" | "bank" | "transfer";
+type PaidMethod = "cash" | "bank";
 type Form = {
   is_service_only: boolean;
   ticket_no: string; pnr: string; passenger_name: string; route: string; travel_date: string; booking_date: string;
@@ -50,6 +50,7 @@ const emptyForm: Form = {
   cost_price: "0", sale_price: "0", status: "booked", notes: "", services: [],
   paid_method: "cash", paid_reference: "",
 };
+
 
 const SERVICE_TYPES = [
   { v: "addon_luggage", l: "Add-on luggage" },
@@ -234,17 +235,28 @@ function TicketsPage() {
       if (!editing && form.status === "paid") {
         const receiveAmount = (form.is_service_only ? 0 : Number(form.sale_price || 0)) + svcSaleTotal;
         if (receiveAmount > 0) {
-          const dbMethod = form.paid_method === "transfer" ? "bank" : form.paid_method;
           const { error: payErr } = await supabase.from("payments").insert({
             owner_id, party_type: buyer_type, party_id: buyer_id,
-            direction: "in", amount: receiveAmount, method: dbMethod,
+            direction: "in", amount: receiveAmount, method: form.paid_method,
             reference: form.paid_reference || `Ticket ${form.ticket_no || ticketId.slice(0, 8)}`,
             ticket_id: ticketId,
-            notes: form.paid_method === "transfer" ? "Auto: paid via transfer on ticket create" : "Auto: paid on ticket create",
+            notes: "Auto: paid on ticket create",
           });
           if (payErr) toast.error("Ticket saved, but payment entry failed: " + payErr.message);
+          // Mirror to Cash-in-Hand / Bank virtual supplier so those balances update
+          const virt = suppliers.find((s: any) => s.kind === form.paid_method);
+          if (virt) {
+            await supabase.from("payments").insert({
+              owner_id, party_type: "supplier", party_id: virt.id,
+              direction: "in", amount: receiveAmount, method: form.paid_method,
+              reference: form.paid_reference || `Ticket ${form.ticket_no || ticketId.slice(0, 8)}`,
+              ticket_id: ticketId,
+              notes: `Auto: ${form.paid_method} received for ticket`,
+            });
+          }
         }
       }
+
       setOpen(false); setEditing(null); setForm(emptyForm); load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -498,7 +510,7 @@ function TicketsPage() {
                       <SelectContent>
                         <SelectItem value="cash">💵 Cash</SelectItem>
                         <SelectItem value="bank">🏦 Bank</SelectItem>
-                        <SelectItem value="transfer">🔁 Transfer (to supplier / agent account)</SelectItem>
+
                       </SelectContent>
                     </Select>
                   </div>

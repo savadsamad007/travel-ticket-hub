@@ -21,9 +21,12 @@ type Entry = {
   date: string;
   description: string;
   ref: string;
+  ticket_no?: string;
+  pnr?: string;
   debit: number;  // increases what other party owes (for us = receivable)
   credit: number; // decreases / payment received
 };
+
 
 function StatementsPage() {
   const [partyType, setPartyType] = useState<PartyType>("supplier");
@@ -52,60 +55,79 @@ function StatementsPage() {
       }
       setOpening(openBal);
 
+      const ticketMeta: Record<string, { ticket_no: string; pnr: string }> = {};
       if (partyType === "supplier") {
-        // tickets where this supplier
         const { data: tk } = await supabase.from("tickets").select("*").eq("supplier_id", partyId).eq("is_deleted", false).order("created_at");
         for (const t of tk ?? []) {
+          ticketMeta[t.id] = { ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "" };
           list.push({
             date: t.created_at, description: `Ticket: ${t.passenger_name} (${t.route ?? "—"})`,
-            ref: t.ticket_no ?? "", debit: 0, credit: Number(t.cost_price),
+            ref: t.ticket_no ?? "", ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "",
+            debit: 0, credit: Number(t.cost_price),
           });
         }
         const ids = (tk ?? []).map((t: any) => t.id);
         if (ids.length) {
           const { data: svs } = await supabase.from("ticket_services").select("*").in("ticket_id", ids).eq("is_deleted", false);
-          for (const s of svs ?? []) list.push({
-            date: s.created_at, description: `Service: ${s.service_type}`, ref: "",
-            debit: 0, credit: Number(s.cost_price),
-          });
+          for (const s of svs ?? []) {
+            const meta = ticketMeta[s.ticket_id];
+            list.push({
+              date: s.created_at, description: `Service: ${s.service_type}`, ref: meta?.ticket_no ?? "",
+              ticket_no: meta?.ticket_no, pnr: meta?.pnr,
+              debit: 0, credit: Number(s.cost_price),
+            });
+          }
           const { data: rfs } = await supabase.from("refunds").select("*").in("ticket_id", ids).eq("is_deleted", false);
           for (const r of rfs ?? []) {
+            const meta = ticketMeta[r.ticket_id];
             if (Number(r.supplier_retention_amount) > 0)
-              list.push({ date: r.created_at, description: "Refund — supplier retention", ref: "", debit: Number(r.supplier_retention_amount), credit: 0 });
+              list.push({ date: r.created_at, description: "Refund — supplier retention", ref: meta?.ticket_no ?? "", ticket_no: meta?.ticket_no, pnr: meta?.pnr, debit: Number(r.supplier_retention_amount), credit: 0 });
             if (Number(r.supplier_refund_amount) > 0)
-              list.push({ date: r.created_at, description: "Refund — supplier returned", ref: "", debit: Number(r.supplier_refund_amount), credit: 0 });
+              list.push({ date: r.created_at, description: "Refund — supplier returned", ref: meta?.ticket_no ?? "", ticket_no: meta?.ticket_no, pnr: meta?.pnr, debit: Number(r.supplier_refund_amount), credit: 0 });
           }
         }
       } else {
         const { data: tk } = await supabase.from("tickets").select("*").eq("buyer_type", partyType).eq("buyer_id", partyId).eq("is_deleted", false).order("created_at");
-        for (const t of tk ?? []) list.push({
-          date: t.created_at, description: `Ticket: ${t.passenger_name} (${t.route ?? "—"})`,
-          ref: t.ticket_no ?? "", debit: Number(t.sale_price), credit: 0,
-        });
+        for (const t of tk ?? []) {
+          ticketMeta[t.id] = { ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "" };
+          list.push({
+            date: t.created_at, description: `Ticket: ${t.passenger_name} (${t.route ?? "—"})`,
+            ref: t.ticket_no ?? "", ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "",
+            debit: Number(t.sale_price), credit: 0,
+          });
+        }
         const ids = (tk ?? []).map((t: any) => t.id);
         if (ids.length) {
           const { data: svs } = await supabase.from("ticket_services").select("*").in("ticket_id", ids).eq("is_deleted", false);
-          for (const s of svs ?? []) list.push({
-            date: s.created_at, description: `Service: ${s.service_type}`, ref: "",
-            debit: Number(s.sale_price), credit: 0,
-          });
+          for (const s of svs ?? []) {
+            const meta = ticketMeta[s.ticket_id];
+            list.push({
+              date: s.created_at, description: `Service: ${s.service_type}`, ref: meta?.ticket_no ?? "",
+              ticket_no: meta?.ticket_no, pnr: meta?.pnr,
+              debit: Number(s.sale_price), credit: 0,
+            });
+          }
           const { data: rfs } = await supabase.from("refunds").select("*").in("ticket_id", ids).eq("is_deleted", false);
-          for (const r of rfs ?? []) if (Number(r.customer_refund_amount) > 0)
-            list.push({ date: r.created_at, description: "Refund to buyer", ref: "", debit: 0, credit: Number(r.customer_refund_amount) });
+          for (const r of rfs ?? []) if (Number(r.customer_refund_amount) > 0) {
+            const meta = ticketMeta[r.ticket_id];
+            list.push({ date: r.created_at, description: "Refund to buyer", ref: meta?.ticket_no ?? "", ticket_no: meta?.ticket_no, pnr: meta?.pnr, debit: 0, credit: Number(r.customer_refund_amount) });
+          }
         }
       }
 
-      const { data: pays } = await supabase.from("payments").select("*").eq("party_type", partyType).eq("party_id", partyId).eq("is_deleted", false).order("created_at");
+      const { data: pays } = await supabase.from("payments").select("*, tickets!left(ticket_no,pnr)").eq("party_type", partyType).eq("party_id", partyId).eq("is_deleted", false).order("created_at");
       for (const p of pays ?? []) {
+        const tno = (p as any).tickets?.ticket_no ?? "";
+        const pnr = (p as any).tickets?.pnr ?? "";
         if (partyType === "supplier") {
-          // out = we paid them → debit (reduces credit balance)
-          if (p.direction === "out") list.push({ date: p.created_at, description: `Payment out (${p.method})`, ref: p.reference ?? "", debit: Number(p.amount), credit: 0 });
-          else list.push({ date: p.created_at, description: `Payment in (${p.method})`, ref: p.reference ?? "", debit: 0, credit: Number(p.amount) });
+          if (p.direction === "out") list.push({ date: p.created_at, description: `Payment out (${p.method})`, ref: p.reference ?? "", ticket_no: tno, pnr, debit: Number(p.amount), credit: 0 });
+          else list.push({ date: p.created_at, description: `Payment in (${p.method})`, ref: p.reference ?? "", ticket_no: tno, pnr, debit: 0, credit: Number(p.amount) });
         } else {
-          if (p.direction === "in") list.push({ date: p.created_at, description: `Payment received (${p.method})`, ref: p.reference ?? "", debit: 0, credit: Number(p.amount) });
-          else list.push({ date: p.created_at, description: `Payment out (${p.method})`, ref: p.reference ?? "", debit: Number(p.amount), credit: 0 });
+          if (p.direction === "in") list.push({ date: p.created_at, description: `Payment received (${p.method})`, ref: p.reference ?? "", ticket_no: tno, pnr, debit: 0, credit: Number(p.amount) });
+          else list.push({ date: p.created_at, description: `Payment out (${p.method})`, ref: p.reference ?? "", ticket_no: tno, pnr, debit: Number(p.amount), credit: 0 });
         }
       }
+
 
       list.sort((a, b) => a.date.localeCompare(b.date));
       setAllEntries(list);
@@ -138,18 +160,18 @@ function StatementsPage() {
 
   function exportPDF() {
     const rows: (string|number)[][] = [];
-    if (openingAdjusted) rows.push([new Date().toLocaleDateString(), "Opening balance", "", 0, 0]);
+    if (openingAdjusted) rows.push([new Date().toLocaleDateString(), "Opening balance", "", "", "", 0, 0]);
     let run = openingAdjusted;
     for (const e of entries) {
       run = run + e.debit - e.credit;
-      rows.push([new Date(e.date).toLocaleDateString(), e.description, e.ref, e.debit, e.credit]);
+      rows.push([new Date(e.date).toLocaleDateString(), e.description, e.ref, e.ticket_no || "", e.pnr || "", e.debit, e.credit]);
     }
     const dateRange = (fromDate || toDate) ? ` | Range: ${fromDate || "…"} → ${toDate || "…"}` : "";
     buildLedgerPDF({
       title: `Statement — ${partyName}`,
       subtitle: `${partyType.replace("_", "-")} statement`,
       filters: `Opening: ${fmt(openingAdjusted)}${dateRange}`,
-      columns: ["Date", "Description", "Ref", "Debit (SAR)", "Credit (SAR)"],
+      columns: ["Date", "Description", "Ref", "Ticket #", "PNR", "Debit (SAR)", "Credit (SAR)"],
       rows,
       totals: [
         { label: "Total debit", value: totals.d },
@@ -158,6 +180,7 @@ function StatementsPage() {
       ],
     });
   }
+
 
   let running = openingAdjusted;
 
@@ -220,12 +243,15 @@ function StatementsPage() {
               <div className={`text-2xl font-bold ${totals.bal >= 0 ? "text-success" : "text-warning"}`}>{fmt(Math.abs(totals.bal))}</div>
             </div>
           </div>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Ref</TableHead>
+                <TableHead>Ticket #</TableHead>
+                <TableHead>PNR</TableHead>
                 <TableHead className="text-right">Debit</TableHead>
                 <TableHead className="text-right">Credit</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
@@ -234,13 +260,13 @@ function StatementsPage() {
             <TableBody>
               {openingAdjusted !== 0 && (
                 <TableRow className="bg-muted/30">
-                  <TableCell>—</TableCell><TableCell colSpan={2}>Opening balance</TableCell>
+                  <TableCell>—</TableCell><TableCell colSpan={4}>Opening balance</TableCell>
                   <TableCell className="text-right">—</TableCell><TableCell className="text-right">—</TableCell>
                   <TableCell className="text-right font-semibold">{fmt(openingAdjusted)}</TableCell>
                 </TableRow>
               )}
               {entries.length === 0 && openingAdjusted === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No transactions yet.</TableCell></TableRow>
               )}
               {entries.map((e, i) => {
                 running = running + e.debit - e.credit;
@@ -249,6 +275,8 @@ function StatementsPage() {
                     <TableCell className="text-sm">{new Date(e.date).toLocaleDateString()}</TableCell>
                     <TableCell>{e.description}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{e.ref}</TableCell>
+                    <TableCell className="text-sm">{e.ticket_no || "—"}</TableCell>
+                    <TableCell className="text-sm">{e.pnr || "—"}</TableCell>
                     <TableCell className="text-right">{e.debit ? fmt(e.debit) : "—"}</TableCell>
                     <TableCell className="text-right">{e.credit ? fmt(e.credit) : "—"}</TableCell>
                     <TableCell className="text-right font-semibold">{fmt(running)}</TableCell>
@@ -257,6 +285,8 @@ function StatementsPage() {
               })}
             </TableBody>
           </Table>
+          </div>
+
           <div className="flex justify-end gap-6 p-4 border-t bg-muted/30 text-sm">
             <div><span className="text-muted-foreground">Total debit:</span> <span className="font-semibold">{fmt(totals.d)}</span></div>
             <div><span className="text-muted-foreground">Total credit:</span> <span className="font-semibold">{fmt(totals.c)}</span></div>
