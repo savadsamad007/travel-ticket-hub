@@ -36,7 +36,7 @@ type Form = {
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
   walking_customer: boolean; walking_name: string; walking_phone: string;
   passenger_same_as_customer: boolean;
-  cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
+  cost_price: string; sale_price: string; status: "booked"|"paid"|"partial"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
   paid_method: PaidMethod; paid_reference: string;
 };
@@ -308,6 +308,7 @@ function TicketsPage() {
   const statusTone: Record<string, string> = {
     booked: "bg-info text-info-foreground",
     paid: "bg-success text-success-foreground",
+    partial: "bg-warning text-warning-foreground",
     refunded: "bg-warning text-warning-foreground",
     cancelled: "bg-destructive text-destructive-foreground",
   };
@@ -496,8 +497,6 @@ function TicketsPage() {
                   <SelectContent>
                     <SelectItem value="booked">Booked</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="refunded">Refunded</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

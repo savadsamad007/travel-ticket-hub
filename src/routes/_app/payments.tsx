@@ -163,6 +163,29 @@ function PaymentsPage() {
         });
       }
 
+      // Auto-update ticket status when a customer pays against a specific ticket
+      if (form.ticket_id && form.direction === "in" && form.party_type === "customer") {
+        const tk = ticketById[form.ticket_id];
+        if (tk && (tk.status === "booked" || tk.status === "partial" || !tk.status)) {
+          // Compute ticket grand total = sale_price + sum(ticket_services.sale_price)
+          const { data: svc } = await supabase
+            .from("ticket_services").select("sale_price")
+            .eq("ticket_id", form.ticket_id).eq("is_deleted", false);
+          const svcTotal = (svc ?? []).reduce((s: number, x: any) => s + Number(x.sale_price ?? 0), 0);
+          const grandTotal = Number(tk.sale_price ?? 0) + svcTotal;
+          // Sum all customer-in payments linked to this ticket (including the one we just inserted)
+          const { data: paidRows } = await supabase
+            .from("payments").select("amount")
+            .eq("ticket_id", form.ticket_id).eq("party_type", "customer")
+            .eq("direction", "in").eq("is_deleted", false);
+          const paidTotal = (paidRows ?? []).reduce((s: number, x: any) => s + Number(x.amount ?? 0), 0);
+          const newStatus = paidTotal + 0.005 >= grandTotal ? "paid" : paidTotal > 0 ? "partial" : tk.status;
+          if (newStatus !== tk.status) {
+            await supabase.from("tickets").update({ status: newStatus }).eq("id", form.ticket_id);
+          }
+        }
+      }
+
       toast.success("Payment recorded");
       setOpen(false);
       setForm({ date: new Date().toISOString().slice(0,10), party_type: "customer", party_id: "", direction: "in", amount: "", method: "cash", method_party_id: "", reference: "", notes: "", ticket_id: "" });
