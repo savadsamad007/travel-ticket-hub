@@ -36,7 +36,7 @@ type Form = {
   airline: string; supplier_id: string; buyer_type: "customer" | "sub_agent"; buyer_id: string;
   walking_customer: boolean; walking_name: string; walking_phone: string;
   passenger_same_as_customer: boolean;
-  cost_price: string; sale_price: string; status: "booked"|"paid"|"refunded"|"cancelled"; notes: string;
+  cost_price: string; sale_price: string; status: "booked"|"paid"|"partial"|"refunded"|"cancelled"; notes: string;
   services: SvcRow[];
   paid_method: PaidMethod; paid_reference: string;
 };
