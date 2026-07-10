@@ -1,0 +1,7 @@
+{
+  "name": "skybird",
+  "version": "1.0.0",
+  "description": "Skybird Travel Billing System",
+  "main": "electron/main.cjs",
+  "author": "Skybird"
+}
