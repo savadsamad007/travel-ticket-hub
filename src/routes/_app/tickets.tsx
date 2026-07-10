@@ -308,6 +308,7 @@ function TicketsPage() {
   const statusTone: Record<string, string> = {
     booked: "bg-info text-info-foreground",
     paid: "bg-success text-success-foreground",
+    partial: "bg-warning text-warning-foreground",
     refunded: "bg-warning text-warning-foreground",
     cancelled: "bg-destructive text-destructive-foreground",
   };
