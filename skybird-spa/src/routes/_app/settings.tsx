@@ -93,17 +93,18 @@ function SettingsPage() {
         async () =>
           await supabase.from("agency_profile").upsert(fullPayload, { onConflict: "agency_owner" }),
       );
-      if (error && /report_email|daily_report/i.test(error.message)) {
+      if (error) {
+        // Fallback: retry without the daily-report columns (schema may not have them yet)
         const res = await withSupabaseRetry(
           async () =>
             await supabase.from("agency_profile").upsert(basePayload, { onConflict: "agency_owner" }),
         );
-        error = res.error;
-        if (!error) {
-          toast.warning("Saved. Run supabase-daily-report.sql to enable daily-report fields.");
+        if (!res.error) {
+          toast.warning("Saved core settings. Run supabase-daily-report.sql to enable the daily-report fields.");
           await refreshAgency();
           return;
         }
+        error = res.error;
       }
       if (error) throw error;
       toast.success("Saved");

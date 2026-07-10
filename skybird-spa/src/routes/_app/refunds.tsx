@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_app/refunds")({
   component: () => (<RequirePerm perm="refunds"><RefundsPage /></RequirePerm>),
@@ -26,22 +27,30 @@ function RefundsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [external, setExternal] = useState(false);
   const [form, setForm] = useState({
     ticket_id: "", customer_refund_amount: "0",
     supplier_retention_amount: "0", supplier_refund_amount: "0", notes: "",
+    // external ticket fields
+    ext_ticket_no: "", ext_passenger: "", ext_airline: "", ext_route: "",
+    ext_party_type: "supplier" as "supplier" | "sub_agent" | "customer",
+    ext_party_id: "",
   });
 
   async function load() {
-    const [rf, tk, cu, ag] = await Promise.all([
+    const [rf, tk, cu, ag, sp] = await Promise.all([
       supabase.from("refunds").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("tickets").select("id, ticket_no, pnr, passenger_name, route, sale_price, cost_price, status, buyer_type, buyer_id").eq("is_deleted", false),
       supabase.from("customers").select("id, name, phone").eq("is_deleted", false),
       supabase.from("sub_agents").select("id, name, phone").eq("is_deleted", false),
+      supabase.from("suppliers").select("id, name").eq("is_deleted", false).order("name"),
     ]);
     setRows(rf.data ?? []); setTickets(tk.data ?? []);
     setCustomers(cu.data ?? []); setAgents(ag.data ?? []);
+    setSuppliers(sp.data ?? []);
   }
   useEffect(() => { load(); }, []);
 
@@ -58,24 +67,44 @@ function RefundsPage() {
   }, [tickets, customers, agents, search]);
 
   const selected = tickets.find((t) => t.id === form.ticket_id);
+  const extPartyList = form.ext_party_type === "supplier" ? suppliers : form.ext_party_type === "sub_agent" ? agents : customers;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.ticket_id) return toast.error("Pick a ticket");
+    if (!external && !form.ticket_id) return toast.error("Pick a ticket");
+    if (external && !form.ext_passenger.trim()) return toast.error("Enter passenger name");
     try {
       const owner_id = await getOwnerId();
-      const { error } = await supabase.from("refunds").insert({
-        owner_id, ticket_id: form.ticket_id,
+      const payload: any = {
+        owner_id,
         customer_refund_amount: Number(form.customer_refund_amount || 0),
         supplier_retention_amount: Number(form.supplier_retention_amount || 0),
         supplier_refund_amount: Number(form.supplier_refund_amount || 0),
         notes: form.notes || null,
-      });
+      };
+      if (external) {
+        payload.ticket_id = null;
+        payload.external_ticket_no = form.ext_ticket_no || null;
+        payload.external_passenger = form.ext_passenger.trim();
+        payload.external_airline = form.ext_airline || null;
+        payload.external_route = form.ext_route || null;
+        payload.external_party_type = form.ext_party_id ? form.ext_party_type : null;
+        payload.external_party_id = form.ext_party_id || null;
+      } else {
+        payload.ticket_id = form.ticket_id;
+      }
+      const { error } = await supabase.from("refunds").insert(payload);
       if (error) throw error;
-      await supabase.from("tickets").update({ status: "refunded" }).eq("id", form.ticket_id);
+      if (!external) {
+        await supabase.from("tickets").update({ status: "refunded" }).eq("id", form.ticket_id);
+      }
       toast.success("Refund recorded");
-      setOpen(false);
-      setForm({ ticket_id: "", customer_refund_amount: "0", supplier_retention_amount: "0", supplier_refund_amount: "0", notes: "" });
+      setOpen(false); setExternal(false);
+      setForm({
+        ticket_id: "", customer_refund_amount: "0", supplier_retention_amount: "0", supplier_refund_amount: "0", notes: "",
+        ext_ticket_no: "", ext_passenger: "", ext_airline: "", ext_route: "",
+        ext_party_type: "supplier", ext_party_id: "",
+      });
       load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -91,6 +120,7 @@ function RefundsPage() {
     return tickets.find((x) => x.id === id);
   }
 
+
   return (
     <div>
       <PageHeader title="Refunds" description="Refund customers and deduct retention from supplier balance.">
@@ -99,6 +129,13 @@ function RefundsPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Record refund</DialogTitle></DialogHeader>
             <form onSubmit={save} className="space-y-3">
+              <label className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                <Switch checked={external} onCheckedChange={setExternal} />
+                <span className="font-medium">External ticket</span>
+                <span className="text-xs text-muted-foreground">(not sold from my shop)</span>
+              </label>
+
+              {!external && (
               <div className="space-y-2">
                 <Label>Find ticket</Label>
                 <div className="relative">
@@ -132,6 +169,42 @@ function RefundsPage() {
                   <div className="text-xs text-muted-foreground">Cost {fmt(selected.cost_price)} · Sale {fmt(selected.sale_price)}</div>
                 )}
               </div>
+              )}
+
+              {external && (
+                <div className="space-y-3 rounded-lg border border-warning/40 bg-warning/5 p-3">
+                  <p className="text-xs text-muted-foreground">Ticket was not sold from your shop. Record refund details manually — the supplier/sub-agent balance below will still be adjusted.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2"><Label>Ticket no</Label><Input value={form.ext_ticket_no} onChange={(e) => setForm({ ...form, ext_ticket_no: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Passenger *</Label><Input required value={form.ext_passenger} onChange={(e) => setForm({ ...form, ext_passenger: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Airline</Label><Input value={form.ext_airline} onChange={(e) => setForm({ ...form, ext_airline: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Route</Label><Input value={form.ext_route} onChange={(e) => setForm({ ...form, ext_route: e.target.value })} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Sold by (party type)</Label>
+                      <Select value={form.ext_party_type} onValueChange={(v: any) => setForm({ ...form, ext_party_type: v, ext_party_id: "" })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="supplier">Supplier</SelectItem>
+                          <SelectItem value="sub_agent">Sub-agent</SelectItem>
+                          <SelectItem value="customer">Customer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Party</Label>
+                      <Select value={form.ext_party_id} onValueChange={(v) => setForm({ ...form, ext_party_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="— Optional —" /></SelectTrigger>
+                        <SelectContent>
+                          {extPartyList.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Refund to customer/sub-agent</Label>
                 <Input type="number" step="0.01" value={form.customer_refund_amount} onChange={(e) => setForm({ ...form, customer_refund_amount: e.target.value })} />
@@ -171,13 +244,17 @@ function RefundsPage() {
           <TableBody>
             {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No refunds yet.</TableCell></TableRow>}
             {rows.map((r) => {
-              const t = ticketInfo(r.ticket_id);
+              const t = r.ticket_id ? ticketInfo(r.ticket_id) : null;
+              const isExt = !r.ticket_id;
+              const num = isExt ? (r.external_ticket_no ? `#${r.external_ticket_no}` : "—") : (t?.ticket_no ? `#${t.ticket_no}` : "—");
+              const pax = isExt ? (r.external_passenger ?? "—") : (t?.passenger_name ?? "—");
+              const rt  = isExt ? (r.external_route ?? "—") : (t?.route ?? "—");
               return (
               <TableRow key={r.id} className="hover:bg-muted/40">
                 <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-sm font-medium">{t?.ticket_no ? `#${t.ticket_no}` : "—"}</TableCell>
-                <TableCell className="text-sm font-semibold">{t?.passenger_name ?? "—"}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{t?.route ?? "—"}</TableCell>
+                <TableCell className="text-sm font-medium">{num}{isExt && <span className="ml-1 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-warning">EXT</span>}</TableCell>
+                <TableCell className="text-sm font-semibold">{pax}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{rt}</TableCell>
                 <TableCell className="text-right text-warning font-semibold">{fmt(r.customer_refund_amount)}</TableCell>
                 <TableCell className="text-right text-info font-semibold">{fmt(r.supplier_retention_amount)}</TableCell>
                 <TableCell className="text-right text-success font-semibold">{fmt(r.supplier_refund_amount)}</TableCell>
