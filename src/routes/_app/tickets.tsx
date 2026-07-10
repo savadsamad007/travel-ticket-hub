@@ -496,8 +496,6 @@ function TicketsPage() {
                   <SelectContent>
                     <SelectItem value="booked">Booked</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="refunded">Refunded</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
