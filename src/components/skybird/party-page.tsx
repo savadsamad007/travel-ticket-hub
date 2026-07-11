@@ -34,7 +34,9 @@ export function PartyPage({
   async function load() {
     const { data, error } = await supabase.from(tbl).select("*").eq("is_deleted", false).order("created_at", { ascending: false });
     if (error) return toast.error(error.message);
-    setRows(data ?? []);
+    // Hide virtual Cash-in-Hand / Bank rows from the Suppliers list — they are assets, not suppliers.
+    const filtered = type === "supplier" ? (data ?? []).filter((r: any) => r.kind !== "cash" && r.kind !== "bank") : (data ?? []);
+    setRows(filtered);
     const bs: Record<string, number> = {};
     await Promise.all((data ?? []).map(async (r: any) => { bs[r.id] = await computePartyBalance(type, r.id); }));
     setBalances(bs);
