@@ -150,10 +150,17 @@ function TicketsPage() {
 
       // Enforce unique ticket number
       if (form.ticket_no.trim()) {
-        const q = supabase.from("tickets").select("id").eq("is_deleted", false).eq("ticket_no", form.ticket_no.trim());
+        const q = supabase.from("tickets").select("id,ticket_no").eq("is_deleted", false).eq("ticket_no", form.ticket_no.trim());
         if (editing) q.neq("id", editing.id);
         const { data: dup } = await q.limit(1);
         if (dup && dup.length) return toast.error(`Ticket # ${form.ticket_no} already exists`);
+      }
+      // Enforce unique PNR
+      if (form.pnr.trim()) {
+        const q = supabase.from("tickets").select("id,pnr").eq("is_deleted", false).eq("pnr", form.pnr.trim());
+        if (editing) q.neq("id", editing.id);
+        const { data: dup } = await q.limit(1);
+        if (dup && dup.length) return toast.error(`PNR ${form.pnr} already exists on another ticket`);
       }
 
       // Walking customer → upsert into customers, then use that id as buyer
@@ -243,17 +250,7 @@ function TicketsPage() {
             notes: "Auto: paid on ticket create",
           });
           if (payErr) toast.error("Ticket saved, but payment entry failed: " + payErr.message);
-          // Mirror to Cash-in-Hand / Bank virtual supplier so those balances update
-          const virt = suppliers.find((s: any) => s.kind === form.paid_method);
-          if (virt) {
-            await supabase.from("payments").insert({
-              owner_id, party_type: "supplier", party_id: virt.id,
-              direction: "in", amount: receiveAmount, method: form.paid_method,
-              reference: form.paid_reference || `Ticket ${form.ticket_no || ticketId.slice(0, 8)}`,
-              ticket_id: ticketId,
-              notes: `Auto: ${form.paid_method} received for ticket`,
-            });
-          }
+          // No cash/bank mirror — cash & bank are our own assets (shown on Cash Book), not counter-parties.
         }
       }
 

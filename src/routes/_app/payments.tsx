@@ -139,13 +139,10 @@ function PaymentsPage() {
       });
       if (error) throw error;
 
-      // Mirror entry so cash-in-hand / bank / supplier / sub-agent balances update
+      // Mirror entry ONLY for supplier / sub-agent routing (their party balance must adjust).
+      // Cash & Bank are OUR assets — no counter-party record needed; Cash-in-Hand shows on the Cash Book.
       let mirror: { party_type: PartyType; party_id: string; direction: "in" | "out" } | null = null;
-      if (form.method === "cash" || form.method === "bank") {
-        const virt = suppliers.find((s: any) => s.kind === form.method);
-        if (virt) mirror = { party_type: "supplier", party_id: virt.id, direction: form.direction };
-      } else if (form.method === "supplier") {
-        // Money went to that supplier's account → they hold it → we owe them less (direction=out from our side)
+      if (form.method === "supplier") {
         mirror = { party_type: "supplier", party_id: form.method_party_id, direction: form.direction === "in" ? "out" : "in" };
       } else if (form.method === "sub_agent") {
         mirror = { party_type: "sub_agent", party_id: form.method_party_id, direction: form.direction === "in" ? "out" : "in" };
@@ -155,9 +152,9 @@ function PaymentsPage() {
           owner_id,
           party_type: mirror.party_type, party_id: mirror.party_id,
           direction: mirror.direction, amount: amt,
-          method: (form.method === "cash" || form.method === "bank") ? form.method : "credit",
+          method: "credit",
           reference: form.reference || null,
-          notes: `Auto-mirror: ${form.direction === "in" ? "received" : "paid"} via ${form.method === "supplier" ? "supplier " + partyName("supplier", form.method_party_id) : form.method === "sub_agent" ? "sub-agent " + partyName("sub_agent", form.method_party_id) : form.method}`,
+          notes: `Auto-mirror: ${form.direction === "in" ? "received" : "paid"} via ${form.method === "supplier" ? "supplier " + partyName("supplier", form.method_party_id) : "sub-agent " + partyName("sub_agent", form.method_party_id)}`,
           ticket_id: form.ticket_id || null,
           created_at,
         });
