@@ -150,10 +150,17 @@ function TicketsPage() {
 
       // Enforce unique ticket number
       if (form.ticket_no.trim()) {
-        const q = supabase.from("tickets").select("id").eq("is_deleted", false).eq("ticket_no", form.ticket_no.trim());
+        const q = supabase.from("tickets").select("id,ticket_no").eq("is_deleted", false).eq("ticket_no", form.ticket_no.trim());
         if (editing) q.neq("id", editing.id);
         const { data: dup } = await q.limit(1);
         if (dup && dup.length) return toast.error(`Ticket # ${form.ticket_no} already exists`);
+      }
+      // Enforce unique PNR
+      if (form.pnr.trim()) {
+        const q = supabase.from("tickets").select("id,pnr").eq("is_deleted", false).eq("pnr", form.pnr.trim());
+        if (editing) q.neq("id", editing.id);
+        const { data: dup } = await q.limit(1);
+        if (dup && dup.length) return toast.error(`PNR ${form.pnr} already exists on another ticket`);
       }
 
       // Walking customer → upsert into customers, then use that id as buyer
