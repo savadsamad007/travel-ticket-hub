@@ -38,7 +38,7 @@ export function PartyPage({
     const filtered = type === "supplier" ? (data ?? []).filter((r: any) => r.kind !== "cash" && r.kind !== "bank") : (data ?? []);
     setRows(filtered);
     const bs: Record<string, number> = {};
-    await Promise.all((data ?? []).map(async (r: any) => { bs[r.id] = await computePartyBalance(type, r.id); }));
+    await Promise.all(filtered.map(async (r: any) => { bs[r.id] = await computePartyBalance(type, r.id); }));
     setBalances(bs);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [type]);
