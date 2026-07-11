@@ -83,38 +83,47 @@ function SettingsPage() {
         opening_cash: Number(form.opening_cash || 0),
         updated_at: new Date().toISOString(),
       };
-      const fullPayload = {
-        ...basePayload,
-        report_email: form.report_email || null,
-        daily_report_enabled: form.daily_report_enabled,
-        daily_report_time: form.daily_report_time || "23:59",
-      };
-      let { error } = await withSupabaseRetry(
+      // Step 1: always save core fields first
+      const coreRes = await withSupabaseRetry(
         async () =>
-          await supabase.from("agency_profile").upsert(fullPayload, { onConflict: "agency_owner" }),
+          await supabase.from("agency_profile").upsert(basePayload, { onConflict: "agency_owner" }),
       );
-      if (error) {
-        // Fallback: retry without the daily-report columns (schema may not have them yet)
-        const res = await withSupabaseRetry(
-          async () =>
-            await supabase.from("agency_profile").upsert(basePayload, { onConflict: "agency_owner" }),
-        );
-        if (!res.error) {
-          toast.warning("Saved core settings. Run supabase-daily-report.sql to enable the daily-report fields.");
-          await refreshAgency();
-          return;
+      if (coreRes.error) throw coreRes.error;
+
+      // Step 2: try to update daily-report columns separately (may not exist yet)
+      const drRes = await withSupabaseRetry(
+        async () =>
+          await supabase
+            .from("agency_profile")
+            .update({
+              report_email: form.report_email || null,
+              daily_report_enabled: form.daily_report_enabled,
+              daily_report_time: form.daily_report_time || "23:59",
+            })
+            .eq("agency_owner", agencyOwner),
+      );
+      if (drRes.error) {
+        const msg = drRes.error.message || "";
+        if (/report_email|daily_report|column .* does not exist|schema cache/i.test(msg)) {
+          toast.warning(
+            "Saved core settings. To enable daily-report fields run supabase-daily-report.sql in Supabase SQL editor.",
+          );
+        } else {
+          toast.warning(`Saved core settings. Daily-report update failed: ${msg}`);
         }
-        error = res.error;
+        await refreshAgency();
+        return;
       }
-      if (error) throw error;
       toast.success("Saved");
       await refreshAgency();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save settings");
+      const msg = e instanceof Error ? e.message : JSON.stringify(e);
+      toast.error(`Could not save settings: ${msg}`);
     } finally {
       setSaving(false);
     }
   }
+
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Loading…</div>;
 
