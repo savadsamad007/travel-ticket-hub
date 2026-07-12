@@ -174,7 +174,7 @@ function ReportsPage() {
               const profit = sale - cost;
               return (
                 <TableRow key={t.id} className="hover:bg-muted/40">
-                  <TableCell className="text-sm">{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm">{new Date(t.booking_date || t.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>{t.passenger_name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{t.route ?? "—"}</TableCell>
                   <TableCell className="text-sm">{nameOf(suppliers, t.supplier_id)}</TableCell>
