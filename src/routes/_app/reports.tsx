@@ -83,7 +83,7 @@ function ReportsPage() {
       const cost = Number(t.cost_price) + svcCost(t.id);
       const sale = Number(t.sale_price) + svcSale(t.id);
       const base: (string|number)[] = [
-        new Date(t.created_at).toLocaleDateString(),
+        new Date(t.booking_date || t.created_at).toLocaleDateString(),
         t.passenger_name, t.route ?? "—",
         nameOf(suppliers, t.supplier_id), buyerName(t),
         sale,
