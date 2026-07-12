@@ -53,8 +53,9 @@ function ReportsPage() {
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
-      if (fromDate && t.created_at < fromDate) return false;
-      if (toDate && t.created_at > toDate + "T23:59:59") return false;
+      const d = t.booking_date || (t.created_at ? String(t.created_at).slice(0, 10) : "");
+      if (fromDate && d && d < fromDate) return false;
+      if (toDate && d && d > toDate) return false;
       if (supplierId !== "all" && t.supplier_id !== supplierId) return false;
       if (agentId !== "all" && !(t.buyer_type === "sub_agent" && t.buyer_id === agentId)) return false;
       return true;
