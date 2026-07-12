@@ -57,11 +57,11 @@ function StatementsPage() {
 
       const ticketMeta: Record<string, { ticket_no: string; pnr: string }> = {};
       if (partyType === "supplier") {
-        const { data: tk } = await supabase.from("tickets").select("*").eq("supplier_id", partyId).eq("is_deleted", false).order("created_at");
+        const { data: tk } = await supabase.from("tickets").select("*").eq("supplier_id", partyId).eq("is_deleted", false).order("booking_date");
         for (const t of tk ?? []) {
           ticketMeta[t.id] = { ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "" };
           list.push({
-            date: t.created_at, description: `Ticket: ${t.passenger_name} (${t.route ?? "—"})`,
+            date: t.booking_date || t.created_at, description: `Ticket: ${t.passenger_name} (${t.route ?? "—"})`,
             ref: t.ticket_no ?? "", ticket_no: t.ticket_no ?? "", pnr: t.pnr ?? "",
             debit: 0, credit: Number(t.cost_price),
           });
