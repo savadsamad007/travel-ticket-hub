@@ -53,8 +53,9 @@ function ReportsPage() {
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
-      if (fromDate && t.created_at < fromDate) return false;
-      if (toDate && t.created_at > toDate + "T23:59:59") return false;
+      const d = t.booking_date || (t.created_at ? String(t.created_at).slice(0, 10) : "");
+      if (fromDate && d && d < fromDate) return false;
+      if (toDate && d && d > toDate) return false;
       if (supplierId !== "all" && t.supplier_id !== supplierId) return false;
       if (agentId !== "all" && !(t.buyer_type === "sub_agent" && t.buyer_id === agentId)) return false;
       return true;
@@ -82,7 +83,7 @@ function ReportsPage() {
       const cost = Number(t.cost_price) + svcCost(t.id);
       const sale = Number(t.sale_price) + svcSale(t.id);
       const base: (string|number)[] = [
-        new Date(t.created_at).toLocaleDateString(),
+        new Date(t.booking_date || t.created_at).toLocaleDateString(),
         t.passenger_name, t.route ?? "—",
         nameOf(suppliers, t.supplier_id), buyerName(t),
         sale,
@@ -173,7 +174,7 @@ function ReportsPage() {
               const profit = sale - cost;
               return (
                 <TableRow key={t.id} className="hover:bg-muted/40">
-                  <TableCell className="text-sm">{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm">{new Date(t.booking_date || t.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>{t.passenger_name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{t.route ?? "—"}</TableCell>
                   <TableCell className="text-sm">{nameOf(suppliers, t.supplier_id)}</TableCell>
